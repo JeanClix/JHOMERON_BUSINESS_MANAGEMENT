@@ -1,0 +1,31 @@
+.item-button {
+  width: 100%;
+  padding: 1rem 1.1rem;
+  text-align: left;
+  border-radius: 1rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #111827;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.item-button:hover {
+  background: #f8fafc;
+}
+
+.item-button.selected {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.item-label {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.item-subtitle {
+  margin-top: 0.25rem;
+  font-size: 0.92rem;
+  color: #6b7280;
+}

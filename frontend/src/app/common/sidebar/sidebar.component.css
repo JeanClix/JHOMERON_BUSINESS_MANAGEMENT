@@ -1,0 +1,51 @@
+.sidebar-shell {
+  width: 100%;
+  max-width: 320px;
+  padding: 1.5rem;
+  border-radius: 2rem;
+  background: #ffffff;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand-mark {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  display: grid;
+  place-items: center;
+  background: #4338ca;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.sidebar-brand h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sidebar-brand span {
+  display: block;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.sidebar-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  font-size: 0.92rem;
+  color: #6b7280;
+}
