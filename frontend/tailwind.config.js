@@ -6,7 +6,7 @@ module.exports = {
     extend: {
       colors: {
         jh: {
-          primary: '#0d3393',
+          primary: '#0c3c98',
           primaryDark: '#0b2670',
           accent: '#ef0606',
           accentDark: '#c70505',

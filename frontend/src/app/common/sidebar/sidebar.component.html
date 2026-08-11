@@ -1,69 +1,93 @@
-<aside [class]="
-    'flex h-full flex-col justify-between bg-[#0d3393] p-4 text-white transition-all duration-300 select-none shadow-xl border-r border-[#0b2670] ' +
-    (isCollapsed() ? 'w-20' : 'w-72')
-  ">
-  <!-- Header & Brand Logo for Internal Vendor Portal -->
+<aside
+  [class]=" 'flex h-full flex-col justify-between bg-[#0c3c98] rounded-r-2xl text-white transition-all duration-300 select-none shadow-xl border-r border-[#0b2670] ' + (isCollapsed() ? 'w-20' : 'w-72') ">
+  <!-- HEADER / LOGO -->
   <div>
-    <div class="mb-5 flex items-center justify-between px-2 pt-1">
-      <div class="flex items-center gap-3 overflow-hidden">
-
-        <!-- Logo -->
-        <div class="flex h-10 shrink-0 items-center justify-center">
-          <img src="logo-white.png" alt="Logo JHOMERON" class="h-10 object-contain">
-        </div>
-
+    <div class="relative mb-3 p-3 flex w-full items-center" [class.min-h-[3rem]]="!isCollapsed()" [class.h-10]="isCollapsed()">
+      <div class="flex w-full items-center overflow-hidden" [class.h-auto]="!isCollapsed()"
+        [class.justify-start]="!isCollapsed()" [class.h-full]="isCollapsed()" [class.justify-center]="isCollapsed()">
+        <img src="logo-white.png" alt="Logo JHOMERON" class="block object-contain transition-all duration-300"
+          [class.w-full]="!isCollapsed()" [class.h-auto]="!isCollapsed()" [class.max-w-full]="!isCollapsed()"
+          [class.h-8]="isCollapsed()" [class.w-auto]="isCollapsed()" [class.max-w-[90%]]="isCollapsed()" />
       </div>
-
-      <button type="button" (click)="onToggleCollapse()"
-        class="hidden md:flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-[#ef0606] transition-colors"
-        [title]="isCollapsed() ? 'Expandir barra lateral' : 'Colapsar barra lateral'">
-        <i [class]="'fa-solid text-xs ' + (isCollapsed() ? 'fa-chevron-right' : 'fa-chevron-left')"></i>
-      </button>
     </div>
 
-    <!-- Navigation Section Title -->
+    <!-- MODULE SWITCHER (Ventas vs Gerencia Hub) -->
+    <div class="mb-4 px-3">
+      @if (!isCollapsed()) {
+        <div class="rounded-xl bg-white/10 p-1 flex gap-1 text-xs">
+          <a
+            routerLink="/ventas"
+            class="flex-1 py-1.5 px-2 rounded-lg font-bold text-center bg-[#ef0606] text-white shadow-xs flex items-center justify-center gap-1"
+          >
+            <i class="fa-solid fa-cart-shopping text-xs"></i> Ventas
+          </a>
+          <a
+            routerLink="/gerencia/dashboard"
+            class="flex-1 py-1.5 px-2 rounded-lg font-bold text-center text-slate-200 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center gap-1"
+          >
+            <i class="fa-solid fa-chart-pie text-amber-400 text-xs"></i> Gerencia
+          </a>
+        </div>
+      } @else {
+        <a
+          routerLink="/gerencia/dashboard"
+          class="flex h-9 w-9 mx-auto items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 hover:bg-[#ef0606] hover:text-white transition-colors"
+          title="Ir a Gerencia Hub"
+        >
+          <i class="fa-solid fa-chart-pie text-xs"></i>
+        </a>
+      }
+    </div>
+
+    <!-- TÍTULO DE NAVEGACIÓN -->
     @if (!isCollapsed()) {
-    <div class="px-3 mb-2 flex items-center justify-between">
-      <span class="text-[11px] font-bold uppercase tracking-wider text-slate-200 opacity-80">
-        Herramientas de Venta
-      </span>
-      <span class="text-[9px] font-bold text-white bg-[#ef0606] px-2 py-0.5 rounded shadow-xs">INTERNO</span>
-    </div>
+      <div class="mb-2 flex items-center justify-between px-4">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-200 opacity-80"> Herramientas de Venta </span>
+        <span class="rounded bg-[#ef0606] px-2 py-0.5 text-[9px] font-bold text-white shadow-xs"> INTERNO </span>
+      </div>
     }
 
-    <!-- Sidebar Navigation List -->
-    <nav class="space-y-1.5">
+    <!-- NAVEGACIÓN -->
+    <nav class="space-y-1.5 px-4">
       @for (item of items(); track item.id) {
-      <app-sidebar-item [item]="item" [isSelected]="item.id === selectedId()" [isCollapsed]="isCollapsed()"
-        (select)="onItemSelect($event)"></app-sidebar-item>
+        <app-sidebar-item [item]="item"
+          [isSelected]="item.id === selectedId()" [isCollapsed]="isCollapsed()" (select)="onItemSelect($event)">
+        </app-sidebar-item>
       }
     </nav>
   </div>
 
-  <!-- Footer Vendor Profile Card -->
-  <div class="mt-auto pt-3 border-t border-white/10">
+  <!-- FOOTER / PERFIL DEL VENDEDOR -->
+  <div class="mt-auto flex flex-col gap-3 border-t border-white/10 pt-3 pb-4 px-4">
+    <!-- Botón Collapse -->
+    <div class="flex" [class.justify-end]="!isCollapsed()" [class.justify-center]="isCollapsed()">
+      <button type="button" (click)="onToggleCollapse()"
+        class="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-[#ef0606] transition-colors"
+        [title]="isCollapsed() ? 'Expandir barra lateral' : 'Colapsar barra lateral'">
+        <i [class]="'fa-solid text-xs ' + (isCollapsed() ? 'fa-chevron-right' : 'fa-chevron-left')"></i>
+      </button>
+    </div>
     @if (!isCollapsed()) {
-    <div class="rounded-xl bg-white/10 p-3 border border-white/10 backdrop-blur-xs">
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#ef0606] text-white font-bold text-xs shadow-xs">
+      <div class="rounded-xl border border-white/10 bg-white/10 p-3 backdrop-blur-xs">
+        <div class="flex items-center gap-3">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#ef0606] text-xs font-bold text-white shadow-xs">
+            <i class="fa-solid fa-user-tie fa-font-solid"></i>
+          </div>
+          <div class="flex min-w-0 flex-1 flex-col">
+            <span class="truncate text-xs font-bold text-white">Vendedor Comercial</span>
+            <span class="flex items-center gap-1 truncate text-[11px] font-semibold text-emerald-300">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Asignado: Lima Norte
+            </span>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="flex justify-center">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ef0606] text-xs text-white"
+          title="Vendedor Comercial Conectado">
           <i class="fa-solid fa-user-tie fa-font-solid"></i>
         </div>
-        <div class="flex flex-col min-w-0 flex-1">
-          <span class="truncate text-xs font-bold text-white">Vendedor Comercial</span>
-          <span class="truncate text-[11px] text-emerald-300 font-semibold flex items-center gap-1">
-            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Asignado: Lima Norte
-          </span>
-        </div>
       </div>
-    </div>
-    } @else {
-    <div class="flex justify-center">
-      <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ef0606] text-white text-xs"
-        title="Vendedor Comercial Conectado">
-        <i class="fa-solid fa-user-tie fa-font-solid"></i>
-      </div>
-    </div>
     }
   </div>
 </aside>
