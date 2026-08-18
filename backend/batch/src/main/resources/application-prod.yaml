@@ -1,0 +1,62 @@
+# ============================================================
+# PERFIL PROD - SAP HANA + PostgreSQL
+# ============================================================
+#
+# QUE USA:
+#   - SAP HANA via JDBC (puerto 30015) como fuente de datos
+#   - PostgreSQL como base de datos de staging
+#   - Stored procedure SP_OBTENER_PEDIDOS para extraer pedidos
+#
+# REQUISITOS PREVIOS:
+#   1. PostgreSQL corriendo con base de datos "jhomeron_batch" creada:
+#      CREATE DATABASE jhomeron_batch;
+#
+#   2. Script de schema ejecutado en PostgreSQL:
+#      psql -d jhomeron_batch -f src/main/resources/schemas/schema-staging.sql
+#
+#   3. Credenciales SAP via variables de entorno:
+#      export SAP_USERNAME=JHOMERON
+#      export SAP_PASSWORD=tu_password
+#
+#   4. La VM de SAP debe estar accesible en el puerto configurado
+#
+# CONEXION A SAP HANA:
+#   - URL: jdbc:sap://<IP_VM>:30015
+#   - El driver JDBC (ngdbc) se descarga via Maven
+#   - NO se instala nada en la VM de SAP
+#   - Solo se necesita que el puerto este habilitado en el firewall
+#
+# COMO EJECUTAR:
+#   1. Crear la DB: CREATE DATABASE jhomeron_batch;
+#   2. Exportar credenciales: export SAP_USERNAME=... SAP_PASSWORD=...
+#   3. Ejecutar: ./mvnw spring-boot:run -Dspring-boot.run.profiles=prod
+#
+# SCHEDULER NOCTURNO:
+#   Activar con batch.scheduling.enabled=true en application.yaml
+#   Se ejecutara automaticamente a las 2:00 AM segun cron configurado
+# ============================================================
+
+spring:
+  batch:
+    job:
+      enabled: false
+
+batch:
+  source: sap
+  sap:
+    # URL de la VM SAP HANA - cambiar IP/hostname segun entorno
+    url: jdbc:sap://VM-SAP:30015
+    driver-class-name: com.sap.db.jdbc.Driver
+    # Credenciales via variables de entorno (mas seguro)
+    username: ${SAP_USERNAME:JHOMERON}
+    password: ${SAP_PASSWORD:}
+    # Stored procedure que retorna los pedidos
+    # Debe devolver columnas: CLIENTE, PRODUCTO, CANTIDAD, FECHA_PEDIDO
+    stored-procedure: "CALL SP_OBTENER_PEDIDOS(?)"
+    fetch-size: 1000
+    timeout: 300
+
+logging:
+  level:
+    com.jhomeron.batch: INFO
+    org.springframework.batch: INFO

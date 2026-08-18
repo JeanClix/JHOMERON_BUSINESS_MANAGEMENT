@@ -1,0 +1,121 @@
+# ============================================================
+# JHOMERON BATCH ETL - Configuracion Base
+# ============================================================
+#
+# QUE HACE ESTE MODULO:
+#   Extrae registros de pedidos de clientes (empresa de pintura)
+#   desde SAP HANA o CSV, y los carga en una tabla staging
+#   en PostgreSQL para el reentrenamiento del modelo ML.
+#
+# PERFILES DISPONIBLES:
+#   dev  -> CSV + H2 en memoria (no necesita nada externo)
+#   prod -> SAP HANA via JDBC + PostgreSQL
+#
+# COMO EJECUTAR:
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=prod
+#
+# SCHEDULER NOCTURNO:
+#   Activar con:  batch.scheduling.enabled=true
+#   Cron default: 0 0 2 * * * (2:00 AM todos los dias)
+#   Para cambiar hora: batch.scheduling.cron="0 30 3 * * *" (3:30 AM)
+#
+# FLUJO DE DATOS:
+#   SAP/CSV --> Reader --> Processor --> Writer --> PostgreSQL staging
+#   (3-4 campos de pedidos de clientes de pintura)
+# ============================================================
+
+spring:
+  application:
+    name: jhomeron-batch
+
+  # Perfil por defecto. Cambiar a "prod" para SAP HANA + PostgreSQL
+  profiles:
+    active: dev
+
+  batch:
+    # Crea las tablas internas de Spring Batch automaticamente
+    jdbc:
+      initialize-schema: always
+    # No arrancar el job al iniciar la app (se ejecuta por scheduler o manual)
+    job:
+      enabled: false
+
+  # ----------------------------------------------------------
+  # DataSource PostgreSQL (solo aplica en perfil prod)
+  # En dev se sobreescribe con H2 en memoria
+  # ----------------------------------------------------------
+  datasource:
+    url: jdbc:postgresql://localhost:5432/jhomeron_batch
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+
+  h2:
+    console:
+      enabled: false
+
+# ============================================================
+# Configuracion del Batch ETL (custom properties)
+# ============================================================
+batch:
+  # Fuente de datos: "csv" para testing, "sap" para produccion
+  # En prod esto se overridea con application-prod.yaml
+  source: csv
+
+  # ----------------------------------------------------------
+  # Config CSV (usada en perfil dev)
+  # ----------------------------------------------------------
+  csv:
+    # Ruta del archivo CSV dentro de src/main/resources/data/
+    path: classpath:data/pedidos_ejemplo.csv
+    encoding: UTF-8
+    delimiter: ","
+    skip-header: true
+
+  # ----------------------------------------------------------
+  # Config SAP HANA (usada en perfil prod)
+  # ----------------------------------------------------------
+  # El driver JDBC del lado cliente (ngdbc en pom.xml)
+  # se conecta al puerto de HANA en la VM remota
+  sap:
+    # URL: jdbc:sap://<IP_O_HOSTNAME>:<PUERTO>
+    # Puerto default HANA: 30015 (interactivo), 30013 (batch)
+    url: jdbc:sap://VM-SAP:30015
+    driver-class-name: com.sap.db.jdbc.Driver
+    # Credenciales via variables de entorno o valores por defecto
+    username: ${SAP_USERNAME:JHOMERON}
+    password: ${SAP_PASSWORD:}
+    # Stored procedure que retorna los pedidos
+    # Debe devolver columnas: CLIENTE, PRODUCTO, CANTIDAD, FECHA_PEDIDO
+    stored-procedure: "CALL SP_OBTENER_PEDIDOS(?)"
+    fetch-size: 1000
+
+  # ----------------------------------------------------------
+  # Tabla staging en PostgreSQL
+  # ----------------------------------------------------------
+  # Aqui se escriben los datos extraidos antes de pasar al ML
+  staging:
+    schema: staging
+    table: pedidos
+
+  # ----------------------------------------------------------
+  # Scheduler nocturno
+  # ----------------------------------------------------------
+  scheduling:
+    # Cambiar a true para ejecucion automatica nocturna
+    enabled: false
+    # Cron: segundo minuto hora dia mes dia-semana
+    # "0 0 2 * * *" = todos los dias a las 2:00 AM
+    cron: "0 0 2 * * *"
+
+# ============================================================
+# Logging
+# ============================================================
+logging:
+  level:
+    com.jhomeron.batch: DEBUG
+    org.springframework.batch: INFO

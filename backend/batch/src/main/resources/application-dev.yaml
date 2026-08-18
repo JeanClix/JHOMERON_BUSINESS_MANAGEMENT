@@ -1,0 +1,47 @@
+# ============================================================
+# PERFIL DEV - Todo local, sin dependencias externas
+# ============================================================
+#
+# QUE USA:
+#   - H2 en memoria como base de datos de staging
+#   - CSV como fuente de datos (src/main/resources/data/pedidos_ejemplo.csv)
+#   - No necesita PostgreSQL ni SAP HANA
+#
+# COMO PROBAR:
+#   1. Ejecutar: ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+#   2. Consola H2: http://localhost:9091
+#   3. JDBC URL: jdbc:h2:mem:stagingdb  |  User: sa  |  Password: (vacio)
+#   4. El batch se ejecuta AUTOMATICAMENTE al arrancar y carga el CSV
+# ============================================================
+
+server:
+  port: 9090
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:stagingdb;DB_CLOSE_DELAY=-1;MODE=POSTGRESQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schemas/schema-staging-h2.sql
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      # true = ejecuta el batch AUTOMATICAMENTE al arrancar
+      enabled: true
+
+batch:
+  source: csv
+  csv:
+    path: classpath:data/pedidos_ejemplo.csv
+    encoding: UTF-8
+    delimiter: ","
+    skip-header: true
+
+logging:
+  level:
+    com.jhomeron.batch: DEBUG
