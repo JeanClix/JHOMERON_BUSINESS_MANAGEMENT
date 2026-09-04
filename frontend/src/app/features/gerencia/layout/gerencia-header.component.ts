@@ -1,6 +1,8 @@
-import { Component, output } from '@angular/core';
+import { Component, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
+
 
 @Component({
   selector: 'app-gerencia-header',
@@ -43,20 +45,36 @@ import { RouterLink } from '@angular/router';
           <span>Ir a Ventas</span>
         </a>
 
-        <!-- User Profile Avatar -->
+        <!-- User Profile Avatar & Logout -->
         <div class="flex items-center gap-2.5 pl-3 border-l border-slate-200">
           <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0c2461] text-white font-extrabold text-xs shadow-2xs">
-            DG
+            {{ authService.currentUser()?.avatarInitials || 'DG' }}
           </div>
           <div class="hidden md:flex flex-col">
-            <span class="text-xs font-extrabold text-slate-900 leading-tight">Dirección General</span>
-            <span class="text-[10px] text-slate-500 font-semibold">Jhomeron Enterprise</span>
+            <span class="text-xs font-extrabold text-slate-900 leading-tight">
+              {{ authService.currentUser()?.name || 'Dirección General' }}
+            </span>
+            <span class="text-[10px] text-slate-500 font-semibold">
+              {{ authService.currentUser()?.area || 'CEO / Comercial' }}
+            </span>
           </div>
+
+          <!-- Logout Button -->
+          <button
+            type="button"
+            (click)="authService.logout()"
+            class="ml-1 p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+            title="Cerrar sesión"
+          >
+            <i class="fa-solid fa-right-from-bracket text-sm"></i>
+          </button>
         </div>
       </div>
     </header>
   `
 })
 export class GerenciaHeaderComponent {
+  readonly authService = inject(AuthService);
   toggleMobileMenu = output<void>();
 }
+

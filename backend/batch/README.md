@@ -1,8 +1,3 @@
-
-Editor.md
-
-Open source online Markdown editor.
-
 JHOMERON — Arquitectura de Inteligencia y MLOps
 
 1. Objetivo general

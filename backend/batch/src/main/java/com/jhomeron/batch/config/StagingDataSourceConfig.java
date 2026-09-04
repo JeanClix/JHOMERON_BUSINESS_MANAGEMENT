@@ -57,7 +57,7 @@ public class StagingDataSourceConfig {
      */
     @Bean(name = "stagingDataSource")
     @Primary
-    @Profile("prod")
+    @Profile({"prod", "neon"})
     public DataSource stagingDataSourceProd(
             @Value("${spring.datasource.url}") String dbUrl,
             @Value("${spring.datasource.username}") String dbUsername,

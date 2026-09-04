@@ -3,9 +3,9 @@ package com.jhomeron.batch.writer;
 import com.jhomeron.batch.model.PedidoDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.infrastructure.item.database.BeanPropertyItemSqlParameterSourceProvider;
-import org.springframework.batch.infrastructure.item.database.JdbcBatchItemWriter;
-import org.springframework.batch.infrastructure.item.database.builder.JdbcBatchItemWriterBuilder;
+import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
+import org.springframework.batch.item.database.JdbcBatchItemWriter;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -66,7 +66,7 @@ public class StagingWriter {
         return new JdbcBatchItemWriterBuilder<PedidoDTO>()
                 .dataSource(stagingDataSource)
                 .sql(sql)
-                .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
+                .beanMapped()
                 .build();
     }
 }

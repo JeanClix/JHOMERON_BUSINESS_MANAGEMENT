@@ -3,7 +3,7 @@ package com.jhomeron.batch.processor;
 import com.jhomeron.batch.model.PedidoDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.infrastructure.item.ItemProcessor;
+import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;

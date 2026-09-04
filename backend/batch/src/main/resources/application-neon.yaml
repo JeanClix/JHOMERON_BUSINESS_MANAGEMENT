@@ -1,0 +1,33 @@
+# ============================================================
+# PERFIL NEON - Extracción SQL Server (Tailscale) -> Carga Neon PostgreSQL Cloud
+# ============================================================
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: ${NEON_JDBC_URL:jdbc:postgresql://ep-summer-poetry-aejuag75-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require}
+    username: ${NEON_USERNAME:neondb_owner}
+    password: ${NEON_PASSWORD:npg_8c2xmVoKnZOl}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: Neon-Staging-Pool
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  batch:
+    jdbc:
+      initialize-schema: never
+    job:
+      enabled: true
+      name: ventaEtlJob
+
+batch:
+  source: sqlserver
+
+logging:
+  level:
+    com.jhomeron.batch: DEBUG
+    org.springframework.batch: DEBUG

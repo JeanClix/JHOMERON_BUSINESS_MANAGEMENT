@@ -119,3 +119,13 @@ logging:
   level:
     com.jhomeron.batch: DEBUG
     org.springframework.batch: INFO
+
+# ============================================================
+# Configuracion base SQL Server (Tailscale)
+# ============================================================
+sqlserver:
+  url: ${SQLSERVER_URL:jdbc:sqlserver://100.117.64.56:1433;databaseName=Jhomeron;encrypt=false;trustServerCertificate=true;}
+  username: ${SQLSERVER_USERNAME:amigo_etl}
+  password: ${SQLSERVER_PASSWORD:nerojp2026}
+  driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+

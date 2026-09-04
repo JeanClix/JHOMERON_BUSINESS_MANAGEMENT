@@ -1,6 +1,7 @@
-import { Component, input, output } from '@angular/core';
+import { Component, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SidebarItemComponent, SidebarItem } from '../sidebar-item/sidebar-item.component';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -10,6 +11,8 @@ import { SidebarItemComponent, SidebarItem } from '../sidebar-item/sidebar-item.
   styleUrls: ['./sidebar.component.css']
 })
 export class SidebarComponent {
+  readonly authService = inject(AuthService);
+
   items = input<SidebarItem[]>([]);
   selectedId = input<string>('');
   isCollapsed = input<boolean>(false);
@@ -24,4 +27,9 @@ export class SidebarComponent {
   onToggleCollapse() {
     this.toggleCollapse.emit();
   }
+
+  onLogout() {
+    this.authService.logout();
+  }
 }
+

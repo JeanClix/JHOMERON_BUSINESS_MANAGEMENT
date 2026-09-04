@@ -15,7 +15,7 @@
 # ============================================================
 
 server:
-  port: 9090
+  port: 8081
 
 spring:
   datasource:
@@ -32,7 +32,7 @@ spring:
       initialize-schema: always
     job:
       # true = ejecuta el batch AUTOMATICAMENTE al arrancar
-      enabled: true
+      enabled: false
 
 batch:
   source: csv
@@ -45,3 +45,12 @@ batch:
 logging:
   level:
     com.jhomeron.batch: DEBUG
+
+# Configuracion de SQL Server para extraer ventas
+sqlserver:
+  url: jdbc:sqlserver://100.117.64.56:1433;databaseName=Jhomeron;encrypt=false;trustServerCertificate=true;
+  username: amigo_etl
+  password: nerojp2026
+  driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+
