@@ -22,71 +22,32 @@ public class VentaDTO {
     // Identificador para base staging (opcional / autogenerado)
     private Long id;
 
-    // Campos del Stored Procedure dbo.SP_EXTRAER_VENTAS
-    private Integer docEntry;
-    private Integer docLine;
-    private LocalDate fecha;
-    private String codigoCliente;
-    private String cliente;
-    private String departamento;
-    private String provincia;
-    private String distrito;
-    private Integer codigoVendedor;
-    private String vendedor;
-    private String codigoProducto;
-    private String producto;
-    private String categoria;
-    private String condicionPago;
+    // Campos del Stored Procedure dbo.sp_ExtraerVentas
+    private LocalDate fechaContabilizacion;
+    private LocalDate fechaDocumento;
+    private LocalDate fechaVencimiento;
+    private String tipo;
+    private String serie;
+    private Integer numero;
+    private String ruc;
+    private String razonSocial;
+    private String empleadoVenta;
+    private String numeroArticulo;
+    private String descripcionArticulo;
+    private String unidadMedida;
     private BigDecimal cantidad;
-    private BigDecimal precioUnitario;
-    private BigDecimal baseImponible;
-    private BigDecimal importeTotal;
-    private BigDecimal igv;
+    private BigDecimal valorUnitario;
+    private BigDecimal totalVentaMe;
+    private String moneda;
+    private BigDecimal tipoCambio;
+    private BigDecimal totalVentaMn;
+    private String ciudad;
+    private String distrito;
+    private String departamento;
 
     // Metadatos para pipeline ETL / Staging
     private LocalDateTime fechaCarga;
     private String source;
     private String lote;
     private String estado;
-
-    // Métodos de compatibilidad con versiones anteriores
-    public LocalDate getDocDate() {
-        return fecha;
-    }
-
-    public String getCardCode() {
-        return codigoCliente;
-    }
-
-    public String getCardName() {
-        return cliente;
-    }
-
-    public String getItemCode() {
-        return codigoProducto;
-    }
-
-    public String getItemName() {
-        return producto;
-    }
-
-    public Integer getSlpCode() {
-        return codigoVendedor;
-    }
-
-    public String getSlpName() {
-        return vendedor;
-    }
-
-    public BigDecimal getQuantity() {
-        return cantidad;
-    }
-
-    public BigDecimal getUnitPrice() {
-        return precioUnitario;
-    }
-
-    public BigDecimal getLineTotal() {
-        return baseImponible;
-    }
 }

@@ -11,6 +11,8 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.item.file.FlatFileItemWriter;
+import org.springframework.batch.item.support.CompositeItemWriter;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
+import java.util.Arrays;
 
 /**
  * Pipeline Batch ETL para Ventas:
@@ -34,13 +37,17 @@ public class VentaBatchJobConfig {
     public Step extraerVentasStep(JobRepository jobRepository,
                                   PlatformTransactionManager transactionManager,
                                   JdbcCursorItemReader<VentaDTO> readerVentasSql,
-                                  JdbcBatchItemWriter<VentaDTO> ventaWriter) {
-        log.info("Configurando Step 1: extraerVentasStep (SQL Server SP_EXTRAER_VENTAS -> Neon staging.ventas)");
+                                  JdbcBatchItemWriter<VentaDTO> ventaWriter,
+                                  FlatFileItemWriter<VentaDTO> logVentaWriter) {
+        log.info("Configurando Step 1: extraerVentasStep (SQL Server sp_ExtraerVentas -> Neon staging.ventas + Logging local)");
+
+        CompositeItemWriter<VentaDTO> compositeItemWriter = new CompositeItemWriter<>();
+        compositeItemWriter.setDelegates(Arrays.asList(logVentaWriter, ventaWriter));
 
         return new StepBuilder("extraerVentasStep", jobRepository)
                 .<VentaDTO, VentaDTO>chunk(100, transactionManager)
                 .reader(readerVentasSql)
-                .writer(ventaWriter)
+                .writer(compositeItemWriter)
                 .build();
     }
 

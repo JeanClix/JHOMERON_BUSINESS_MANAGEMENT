@@ -22,10 +22,10 @@ CREATE TABLE IF NOT EXISTS dwh.dim_tiempo (
 -- 2. Dimensión Cliente
 CREATE TABLE IF NOT EXISTS dwh.dim_cliente (
     cliente_id SERIAL PRIMARY KEY,
-    codigo_cliente VARCHAR(50) NOT NULL UNIQUE,
-    nombre_cliente VARCHAR(255) NOT NULL,
+    ruc VARCHAR(50) NOT NULL UNIQUE,
+    razon_social VARCHAR(255) NOT NULL,
     departamento VARCHAR(100),
-    provincia VARCHAR(100),
+    ciudad VARCHAR(100),
     distrito VARCHAR(100),
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -33,43 +33,42 @@ CREATE TABLE IF NOT EXISTS dwh.dim_cliente (
 -- 3. Dimensión Producto
 CREATE TABLE IF NOT EXISTS dwh.dim_producto (
     producto_id SERIAL PRIMARY KEY,
-    codigo_producto VARCHAR(50) NOT NULL UNIQUE,
-    nombre_producto VARCHAR(255) NOT NULL,
-    categoria VARCHAR(100),
+    numero_articulo VARCHAR(50) NOT NULL UNIQUE,
+    descripcion_articulo VARCHAR(255) NOT NULL,
+    unidad_medida VARCHAR(50),
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 4. Dimensión Vendedor
 CREATE TABLE IF NOT EXISTS dwh.dim_vendedor (
     vendedor_id SERIAL PRIMARY KEY,
-    codigo_vendedor INT NOT NULL UNIQUE,
-    nombre_vendedor VARCHAR(150) NOT NULL,
+    empleado_venta VARCHAR(150) NOT NULL UNIQUE,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Dimensión Condición de Pago
-CREATE TABLE IF NOT EXISTS dwh.dim_condicion_pago (
-    condicion_pago_id SERIAL PRIMARY KEY,
-    nombre_condicion VARCHAR(100) NOT NULL UNIQUE
+-- 5. Dimensión Tipo de Documento
+CREATE TABLE IF NOT EXISTS dwh.dim_tipo_doc (
+    tipo_id SERIAL PRIMARY KEY,
+    tipo VARCHAR(50) NOT NULL UNIQUE
 );
 
 -- 6. Tabla de Hechos: Ventas
 CREATE TABLE IF NOT EXISTS dwh.fact_ventas (
     fact_id BIGSERIAL PRIMARY KEY,
-    doc_entry INT NOT NULL,
-    doc_line INT NOT NULL,
+    serie VARCHAR(50) NOT NULL,
+    numero INT NOT NULL,
     fecha_id INT NOT NULL REFERENCES dwh.dim_tiempo(fecha_id),
     cliente_id INT NOT NULL REFERENCES dwh.dim_cliente(cliente_id),
     producto_id INT NOT NULL REFERENCES dwh.dim_producto(producto_id),
     vendedor_id INT NOT NULL REFERENCES dwh.dim_vendedor(vendedor_id),
-    condicion_pago_id INT REFERENCES dwh.dim_condicion_pago(condicion_pago_id),
+    tipo_id INT REFERENCES dwh.dim_tipo_doc(tipo_id),
     cantidad NUMERIC(19, 4) NOT NULL,
-    precio_unitario NUMERIC(19, 4) NOT NULL,
-    base_imponible NUMERIC(19, 4) NOT NULL,
-    igv NUMERIC(19, 4) NOT NULL,
-    importe_total NUMERIC(19, 4) NOT NULL,
+    valor_unitario NUMERIC(19, 4) NOT NULL,
+    total_venta_me NUMERIC(19, 4) NOT NULL,
+    tipo_cambio NUMERIC(19, 4) NOT NULL,
+    total_venta_mn NUMERIC(19, 4) NOT NULL,
     fecha_carga TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_fact_ventas_doc_line UNIQUE (doc_entry, doc_line)
+    CONSTRAINT uk_fact_ventas_doc UNIQUE (serie, numero, producto_id)
 );
 
 -- Índices de optimización para BI y análisis ML
@@ -77,7 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_fact_ventas_fecha ON dwh.fact_ventas(fecha_id);
 CREATE INDEX IF NOT EXISTS idx_fact_ventas_cliente ON dwh.fact_ventas(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_fact_ventas_producto ON dwh.fact_ventas(producto_id);
 CREATE INDEX IF NOT EXISTS idx_fact_ventas_vendedor ON dwh.fact_ventas(vendedor_id);
-CREATE INDEX IF NOT EXISTS idx_fact_ventas_condicion ON dwh.fact_ventas(condicion_pago_id);
+CREATE INDEX IF NOT EXISTS idx_fact_ventas_tipo ON dwh.fact_ventas(tipo_id);
 
 -- ============================================================
 -- PROCEDIMIENTO DE TRANSFORMACIÓN: staging -> modelo estrella
@@ -89,99 +88,96 @@ BEGIN
     -- 1. Poblar dim_tiempo desde las fechas de staging.ventas
     INSERT INTO dwh.dim_tiempo (fecha_id, fecha, anio, mes, mes_nombre, dia, dia_semana, dia_nombre, trimestre, es_fin_semana)
     SELECT DISTINCT
-        TO_CHAR(fecha, 'YYYYMMDD')::INT,
-        fecha,
-        EXTRACT(YEAR FROM fecha)::INT,
-        EXTRACT(MONTH FROM fecha)::INT,
-        TO_CHAR(fecha, 'TMMonth'),
-        EXTRACT(DAY FROM fecha)::INT,
-        EXTRACT(ISODOW FROM fecha)::INT,
-        TO_CHAR(fecha, 'TMDay'),
-        EXTRACT(QUARTER FROM fecha)::INT,
-        CASE WHEN EXTRACT(ISODOW FROM fecha) IN (6, 7) THEN TRUE ELSE FALSE END
+        TO_CHAR(fecha_contabilizacion, 'YYYYMMDD')::INT,
+        fecha_contabilizacion,
+        EXTRACT(YEAR FROM fecha_contabilizacion)::INT,
+        EXTRACT(MONTH FROM fecha_contabilizacion)::INT,
+        TO_CHAR(fecha_contabilizacion, 'TMMonth'),
+        EXTRACT(DAY FROM fecha_contabilizacion)::INT,
+        EXTRACT(ISODOW FROM fecha_contabilizacion)::INT,
+        TO_CHAR(fecha_contabilizacion, 'TMDay'),
+        EXTRACT(QUARTER FROM fecha_contabilizacion)::INT,
+        CASE WHEN EXTRACT(ISODOW FROM fecha_contabilizacion) IN (6, 7) THEN TRUE ELSE FALSE END
     FROM staging.ventas
-    WHERE estado = 'PENDIENTE'
+    WHERE estado = 'PENDIENTE' AND fecha_contabilizacion IS NOT NULL
     ON CONFLICT (fecha) DO NOTHING;
 
     -- 2. Poblar dim_cliente (SCD Tipo 1: actualiza ubicación si cambia)
-    INSERT INTO dwh.dim_cliente (codigo_cliente, nombre_cliente, departamento, provincia, distrito)
-    SELECT DISTINCT ON (codigo_cliente)
-        codigo_cliente,
-        COALESCE(cliente, 'SIN NOMBRE'),
+    INSERT INTO dwh.dim_cliente (ruc, razon_social, departamento, ciudad, distrito)
+    SELECT DISTINCT ON (ruc)
+        ruc,
+        COALESCE(razon_social, 'SIN RAZON SOCIAL'),
         departamento,
-        provincia,
+        ciudad,
         distrito
     FROM staging.ventas
-    WHERE estado = 'PENDIENTE' AND codigo_cliente IS NOT NULL
-    ORDER BY codigo_cliente, fecha_carga DESC
-    ON CONFLICT (codigo_cliente) DO UPDATE SET
-        nombre_cliente = EXCLUDED.nombre_cliente,
+    WHERE estado = 'PENDIENTE' AND ruc IS NOT NULL
+    ORDER BY ruc, fecha_carga DESC
+    ON CONFLICT (ruc) DO UPDATE SET
+        razon_social = EXCLUDED.razon_social,
         departamento = EXCLUDED.departamento,
-        provincia = EXCLUDED.provincia,
+        ciudad = EXCLUDED.ciudad,
         distrito = EXCLUDED.distrito;
 
     -- 3. Poblar dim_producto
-    INSERT INTO dwh.dim_producto (codigo_producto, nombre_producto, categoria)
-    SELECT DISTINCT ON (codigo_producto)
-        codigo_producto,
-        COALESCE(producto, 'SIN NOMBRE'),
-        categoria
+    INSERT INTO dwh.dim_producto (numero_articulo, descripcion_articulo, unidad_medida)
+    SELECT DISTINCT ON (numero_articulo)
+        numero_articulo,
+        COALESCE(descripcion_articulo, 'SIN DESCRIPCION'),
+        unidad_medida
     FROM staging.ventas
-    WHERE estado = 'PENDIENTE' AND codigo_producto IS NOT NULL
-    ORDER BY codigo_producto, fecha_carga DESC
-    ON CONFLICT (codigo_producto) DO UPDATE SET
-        nombre_producto = EXCLUDED.nombre_producto,
-        categoria = EXCLUDED.categoria;
+    WHERE estado = 'PENDIENTE' AND numero_articulo IS NOT NULL
+    ORDER BY numero_articulo, fecha_carga DESC
+    ON CONFLICT (numero_articulo) DO UPDATE SET
+        descripcion_articulo = EXCLUDED.descripcion_articulo,
+        unidad_medida = EXCLUDED.unidad_medida;
 
     -- 4. Poblar dim_vendedor
-    INSERT INTO dwh.dim_vendedor (codigo_vendedor, nombre_vendedor)
-    SELECT DISTINCT ON (codigo_vendedor)
-        codigo_vendedor,
-        COALESCE(vendedor, 'SIN VENDEDOR')
+    INSERT INTO dwh.dim_vendedor (empleado_venta)
+    SELECT DISTINCT ON (empleado_venta)
+        COALESCE(empleado_venta, 'SIN VENDEDOR')
     FROM staging.ventas
-    WHERE estado = 'PENDIENTE' AND codigo_vendedor IS NOT NULL
-    ORDER BY codigo_vendedor, fecha_carga DESC
-    ON CONFLICT (codigo_vendedor) DO UPDATE SET
-        nombre_vendedor = EXCLUDED.nombre_vendedor;
+    WHERE estado = 'PENDIENTE' AND empleado_venta IS NOT NULL
+    ON CONFLICT (empleado_venta) DO NOTHING;
 
-    -- 5. Poblar dim_condicion_pago
-    INSERT INTO dwh.dim_condicion_pago (nombre_condicion)
-    SELECT DISTINCT condicion_pago
+    -- 5. Poblar dim_tipo_doc
+    INSERT INTO dwh.dim_tipo_doc (tipo)
+    SELECT DISTINCT tipo
     FROM staging.ventas
-    WHERE estado = 'PENDIENTE' AND condicion_pago IS NOT NULL
-    ON CONFLICT (nombre_condicion) DO NOTHING;
+    WHERE estado = 'PENDIENTE' AND tipo IS NOT NULL
+    ON CONFLICT (tipo) DO NOTHING;
 
     -- 6. Poblar fact_ventas vinculando con las dimensiones
     INSERT INTO dwh.fact_ventas (
-        doc_entry, doc_line, fecha_id, cliente_id, producto_id, vendedor_id, condicion_pago_id,
-        cantidad, precio_unitario, base_imponible, igv, importe_total
+        serie, numero, fecha_id, cliente_id, producto_id, vendedor_id, tipo_id,
+        cantidad, valor_unitario, total_venta_me, tipo_cambio, total_venta_mn
     )
     SELECT
-        s.doc_entry,
-        s.doc_line,
+        s.serie,
+        s.numero,
         t.fecha_id,
         c.cliente_id,
         p.producto_id,
         v.vendedor_id,
-        cp.condicion_pago_id,
+        td.tipo_id,
         COALESCE(s.cantidad, 0),
-        COALESCE(s.precio_unitario, 0),
-        COALESCE(s.base_imponible, 0),
-        COALESCE(s.igv, 0),
-        COALESCE(s.importe_total, 0)
+        COALESCE(s.valor_unitario, 0),
+        COALESCE(s.total_venta_me, 0),
+        COALESCE(s.tipo_cambio, 0),
+        COALESCE(s.total_venta_mn, 0)
     FROM staging.ventas s
-    INNER JOIN dwh.dim_tiempo t ON s.fecha = t.fecha
-    INNER JOIN dwh.dim_cliente c ON s.codigo_cliente = c.codigo_cliente
-    INNER JOIN dwh.dim_producto p ON s.codigo_producto = p.codigo_producto
-    INNER JOIN dwh.dim_vendedor v ON s.codigo_vendedor = v.codigo_vendedor
-    LEFT JOIN dwh.dim_condicion_pago cp ON s.condicion_pago = cp.nombre_condicion
+    INNER JOIN dwh.dim_tiempo t ON s.fecha_contabilizacion = t.fecha
+    INNER JOIN dwh.dim_cliente c ON s.ruc = c.ruc
+    INNER JOIN dwh.dim_producto p ON s.numero_articulo = p.numero_articulo
+    INNER JOIN dwh.dim_vendedor v ON COALESCE(s.empleado_venta, 'SIN VENDEDOR') = v.empleado_venta
+    LEFT JOIN dwh.dim_tipo_doc td ON s.tipo = td.tipo
     WHERE s.estado = 'PENDIENTE'
-    ON CONFLICT (doc_entry, doc_line) DO UPDATE SET
+    ON CONFLICT (serie, numero, producto_id) DO UPDATE SET
         cantidad = EXCLUDED.cantidad,
-        precio_unitario = EXCLUDED.precio_unitario,
-        base_imponible = EXCLUDED.base_imponible,
-        igv = EXCLUDED.igv,
-        importe_total = EXCLUDED.importe_total,
+        valor_unitario = EXCLUDED.valor_unitario,
+        total_venta_me = EXCLUDED.total_venta_me,
+        tipo_cambio = EXCLUDED.tipo_cambio,
+        total_venta_mn = EXCLUDED.total_venta_mn,
         fecha_carga = CURRENT_TIMESTAMP;
 
     -- 7. Marcar registros procesados en staging

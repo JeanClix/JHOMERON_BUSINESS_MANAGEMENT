@@ -1,0 +1,4 @@
+# Logs
+backend/batch/logs/
+*.log
+*.log.bkp

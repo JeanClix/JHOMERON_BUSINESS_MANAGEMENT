@@ -39,7 +39,7 @@
 spring:
   batch:
     job:
-      enabled: false
+      enabled: true
 
 batch:
   source: sap

@@ -42,37 +42,37 @@ COMMENT ON COLUMN staging.pedidos.estado IS 'Estado del registro en el pipeline 
 DROP TABLE IF EXISTS staging.ventas;
 CREATE TABLE staging.ventas (
     id SERIAL PRIMARY KEY,
-    doc_entry INTEGER NOT NULL,
-    doc_line INTEGER NOT NULL,
-    fecha DATE NOT NULL,
-    codigo_cliente VARCHAR(50),
-    cliente VARCHAR(255),
-    departamento VARCHAR(100),
-    provincia VARCHAR(100),
-    distrito VARCHAR(100),
-    codigo_vendedor INTEGER,
-    vendedor VARCHAR(150),
-    codigo_producto VARCHAR(50),
-    producto VARCHAR(255),
-    categoria VARCHAR(100),
-    condicion_pago VARCHAR(100),
+    fecha_contabilizacion DATE,
+    fecha_documento DATE,
+    fecha_vencimiento DATE,
+    tipo VARCHAR(50),
+    serie VARCHAR(50),
+    numero INTEGER,
+    ruc VARCHAR(50),
+    razon_social VARCHAR(255),
+    empleado_venta VARCHAR(150),
+    numero_articulo VARCHAR(50),
+    descripcion_articulo VARCHAR(255),
+    unidad_medida VARCHAR(50),
     cantidad NUMERIC(19, 4),
-    precio_unitario NUMERIC(19, 4),
-    base_imponible NUMERIC(19, 4),
-    importe_total NUMERIC(19, 4),
-    igv NUMERIC(19, 4),
+    valor_unitario NUMERIC(19, 4),
+    total_venta_me NUMERIC(19, 4),
+    moneda VARCHAR(20),
+    tipo_cambio NUMERIC(19, 4),
+    total_venta_mn NUMERIC(19, 4),
+    ciudad VARCHAR(100),
+    distrito VARCHAR(100),
+    departamento VARCHAR(100),
     fecha_carga TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     source VARCHAR(20) DEFAULT 'SAP',
     lote VARCHAR(50),
     estado VARCHAR(20) DEFAULT 'PENDIENTE' CHECK (estado IN ('PENDIENTE', 'PROCESADO', 'ERROR'))
 );
 
-CREATE INDEX idx_ventas_docentry_line ON staging.ventas(doc_entry, doc_line);
-CREATE INDEX idx_ventas_fecha ON staging.ventas(fecha);
-CREATE INDEX idx_ventas_cliente ON staging.ventas(codigo_cliente);
-CREATE INDEX idx_ventas_producto ON staging.ventas(codigo_producto);
-CREATE INDEX idx_ventas_vendedor ON staging.ventas(codigo_vendedor);
+CREATE INDEX idx_ventas_fecha ON staging.ventas(fecha_contabilizacion);
+CREATE INDEX idx_ventas_ruc ON staging.ventas(ruc);
+CREATE INDEX idx_ventas_producto ON staging.ventas(numero_articulo);
+CREATE INDEX idx_ventas_vendedor ON staging.ventas(empleado_venta);
 CREATE INDEX idx_ventas_estado ON staging.ventas(estado);
 
-COMMENT ON TABLE staging.ventas IS 'Tabla de staging para ventas extraídas de SAP B1 vía SP_EXTRAER_VENTAS';
-
+COMMENT ON TABLE staging.ventas IS 'Tabla de staging para ventas extraídas de SAP B1 vía sp_ExtraerVentas';
