@@ -1,10 +1,15 @@
 package com.jhomeron.batch.reader;
 
 import com.jhomeron.batch.model.VentaDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementSetter;
 
 import javax.sql.DataSource;
@@ -13,23 +18,41 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
 
-import org.springframework.beans.factory.annotation.Qualifier;
-
 @Configuration
 public class SqlServerVentaReader {
 
+    private static final Logger log = LoggerFactory.getLogger(SqlServerVentaReader.class);
+
+    private static final String JOB_NAME = "ventaEtlJob";
+    private static final LocalDate FECHA_MINIMA = LocalDate.of(2000, 1, 1);
+
+    /**
+     * Reader @StepScope: el rango de fechas se calcula recién cuando arranca el Step,
+     * no cuando arranca la app. Esto permite leer el watermark (staging.control_carga)
+     * en cada corrida:
+     *   - fechaDesde = fecha_hasta_procesada + 1 día (o FECHA_MINIMA si es la primera corrida)
+     *   - fechaHasta = hoy
+     * Así, si el batch se vuelve a ejecutar el mismo día sin nuevas ventas, el rango
+     * queda vacío y no se reinserta nada en staging (idempotencia por incrementalidad,
+     * en vez de deduplicar por contenido de fila, que puede colapsar ventas legítimamente
+     * idénticas -- ver README/discusión del modelo estrella).
+     */
     @Bean
-    public JdbcCursorItemReader<VentaDTO> readerVentasSql(@Qualifier("sqlServerDataSource") DataSource dataSource) {
-        // Rango de fechas para extracción histórica (configurable)
-        LocalDate fechaDesde = LocalDate.of(2000, 1, 1);
-        LocalDate fechaHasta = LocalDate.of(2026, 12, 31);
+    @StepScope
+    public JdbcCursorItemReader<VentaDTO> readerVentasSql(
+            @Qualifier("sqlServerDataSource") DataSource sqlServerDataSource,
+            @Qualifier("stagingDataSource") DataSource stagingDataSource) {
+
+        LocalDate fechaDesde = obtenerFechaDesde(stagingDataSource);
+        LocalDate fechaHasta = LocalDate.now();
+
+        log.info("Extrayendo ventas de SAP en el rango: {} -> {}", fechaDesde, fechaHasta);
 
         return new JdbcCursorItemReaderBuilder<VentaDTO>()
                 .name("ventasSqlServerReader")
-                .dataSource(dataSource)
+                .dataSource(sqlServerDataSource)
                 .sql("EXEC dbo.sp_ExtraerVentas @FechaInicio = ?, @FechaFin = ?")
-                .maxItemCount(5000) // Límite para desarrollo
-                .fetchSize(100)     // Para no saturar la memoria de golpe
+                .fetchSize(500) // Streaming vía cursor, sin cargar todo en memoria
                 .preparedStatementSetter(new PreparedStatementSetter() {
                     @Override
                     public void setValues(PreparedStatement ps) throws SQLException {
@@ -63,5 +86,21 @@ public class SqlServerVentaReader {
                         .estado("PENDIENTE")
                         .build())
                 .build();
+    }
+
+    private LocalDate obtenerFechaDesde(DataSource stagingDataSource) {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(stagingDataSource);
+        try {
+            LocalDate fechaHastaProcesada = jdbcTemplate.queryForObject(
+                    "SELECT fecha_hasta_procesada FROM staging.control_carga WHERE job_name = ?",
+                    LocalDate.class,
+                    JOB_NAME);
+            if (fechaHastaProcesada != null) {
+                return fechaHastaProcesada.plusDays(1);
+            }
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            log.info("No hay watermark previo para '{}' en staging.control_carga; se usará fecha mínima {}", JOB_NAME, FECHA_MINIMA);
+        }
+        return FECHA_MINIMA;
     }
 }

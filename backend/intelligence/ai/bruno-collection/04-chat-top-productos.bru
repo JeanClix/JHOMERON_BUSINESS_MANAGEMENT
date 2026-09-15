@@ -1,0 +1,21 @@
+meta {
+  name: Chat - Top productos
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/chat
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "pregunta": "¿Cuáles son los 5 productos más vendidos por total en soles?"
+  }
+}

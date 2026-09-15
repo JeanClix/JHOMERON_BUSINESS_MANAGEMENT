@@ -1,0 +1,21 @@
+meta {
+  name: Chat - Total de ventas
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/chat
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "pregunta": "¿Cuánto vendimos en total en soles?"
+  }
+}

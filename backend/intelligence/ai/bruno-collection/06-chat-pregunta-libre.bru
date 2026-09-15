@@ -1,0 +1,21 @@
+meta {
+  name: Chat - Pregunta libre (editar body)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/chat
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "pregunta": "Escribe aquí tu pregunta"
+  }
+}

@@ -418,33 +418,9 @@
           </div>
         }
 
-        <!-- ASISTENTE IA MODULE -->
+        <!-- ASISTENTE DE VENTAS IA (conectado al AI Service / Data Warehouse real) -->
         @case ('asistente_ia') {
-          <div class="rounded-2xl bg-white p-6 border border-slate-200 shadow-sm space-y-4">
-            <div class="flex items-center gap-3">
-              <div class="h-10 w-10 rounded-xl bg-[#0d3393] text-white flex items-center justify-center text-lg">
-                <i class="fa-solid fa-robot fa-font-solid"></i>
-              </div>
-              <div>
-                <h3 class="text-lg font-bold text-slate-900">Recomendador Técnico de Sistemas de Pintado</h3>
-                <p class="text-xs text-slate-500">Inteligencia artificial para asesorar esquemas de aplicación en obra.</p>
-              </div>
-            </div>
-
-            <div class="rounded-xl border border-slate-200 p-4 bg-slate-50 space-y-3">
-              <label class="text-xs font-bold text-slate-700 block">Consulta técnica de superficie:</label>
-              <div class="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Ej: ¿Qué primer epóxico aplicar sobre casco de acero marino oxidado?"
-                  class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:outline-none focus:border-[#0d3393]"
-                />
-                <button class="rounded-lg bg-[#ef0606] px-4 py-2 text-xs font-bold text-white">
-                  Consultar Esquema
-                </button>
-              </div>
-            </div>
-          </div>
+          <app-ventas-ai-chat></app-ventas-ai-chat>
         }
 
         @default {

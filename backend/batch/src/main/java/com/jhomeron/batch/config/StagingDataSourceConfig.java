@@ -52,12 +52,13 @@ public class StagingDataSourceConfig {
     }
 
     /**
-     * DataSource para perfil PROD: PostgreSQL.
+     * DataSource para perfiles PROD / NEON / LOCAL: PostgreSQL.
      * Requiere que la DB "jhomeron_batch" exista y el schema este creado.
+     * (En "local" apunta a PostgreSQL en localhost, ver application-local.yaml)
      */
     @Bean(name = "stagingDataSource")
     @Primary
-    @Profile({"prod", "neon"})
+    @Profile({"prod", "neon", "local"})
     public DataSource stagingDataSourceProd(
             @Value("${spring.datasource.url}") String dbUrl,
             @Value("${spring.datasource.username}") String dbUsername,

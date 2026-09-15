@@ -67,8 +67,13 @@ CREATE TABLE IF NOT EXISTS dwh.fact_ventas (
     total_venta_me NUMERIC(19, 4) NOT NULL,
     tipo_cambio NUMERIC(19, 4) NOT NULL,
     total_venta_mn NUMERIC(19, 4) NOT NULL,
+    -- Discriminador de línea: SAP no expone DocLine en el SP actual, así que se
+    -- genera aquí (ROW_NUMBER por serie+numero+producto, ordenado por llegada a staging)
+    -- para poder distinguir el mismo producto repetido en la misma factura
+    -- (p.ej. mismo artículo a dos precios distintos en la misma factura).
+    linea INT NOT NULL DEFAULT 1,
     fecha_carga TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_fact_ventas_doc UNIQUE (serie, numero, producto_id)
+    CONSTRAINT uk_fact_ventas_doc UNIQUE (serie, numero, producto_id, linea)
 );
 
 -- Índices de optimización para BI y análisis ML
@@ -148,9 +153,11 @@ BEGIN
     ON CONFLICT (tipo) DO NOTHING;
 
     -- 6. Poblar fact_ventas vinculando con las dimensiones
+    -- "linea" distingue repeticiones del mismo producto en la misma factura
+    -- (SAP no expone DocLine todavía en el SP de extracción; se numera por orden de llegada a staging)
     INSERT INTO dwh.fact_ventas (
         serie, numero, fecha_id, cliente_id, producto_id, vendedor_id, tipo_id,
-        cantidad, valor_unitario, total_venta_me, tipo_cambio, total_venta_mn
+        cantidad, valor_unitario, total_venta_me, tipo_cambio, total_venta_mn, linea
     )
     SELECT
         s.serie,
@@ -164,7 +171,8 @@ BEGIN
         COALESCE(s.valor_unitario, 0),
         COALESCE(s.total_venta_me, 0),
         COALESCE(s.tipo_cambio, 0),
-        COALESCE(s.total_venta_mn, 0)
+        COALESCE(s.total_venta_mn, 0),
+        ROW_NUMBER() OVER (PARTITION BY s.serie, s.numero, s.numero_articulo ORDER BY s.id)
     FROM staging.ventas s
     INNER JOIN dwh.dim_tiempo t ON s.fecha_contabilizacion = t.fecha
     INNER JOIN dwh.dim_cliente c ON s.ruc = c.ruc
@@ -172,7 +180,7 @@ BEGIN
     INNER JOIN dwh.dim_vendedor v ON COALESCE(s.empleado_venta, 'SIN VENDEDOR') = v.empleado_venta
     LEFT JOIN dwh.dim_tipo_doc td ON s.tipo = td.tipo
     WHERE s.estado = 'PENDIENTE'
-    ON CONFLICT (serie, numero, producto_id) DO UPDATE SET
+    ON CONFLICT (serie, numero, producto_id, linea) DO UPDATE SET
         cantidad = EXCLUDED.cantidad,
         valor_unitario = EXCLUDED.valor_unitario,
         total_venta_me = EXCLUDED.total_venta_me,

@@ -2,3 +2,9 @@
 backend/batch/logs/
 *.log
 *.log.bkp
+
+# Secretos / entornos (nunca commitear API keys, DB passwords, etc.)
+.env
+.env.*
+!.env.example
+intelligence/ai/.venv/

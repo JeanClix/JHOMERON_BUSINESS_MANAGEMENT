@@ -1,0 +1,21 @@
+meta {
+  name: Chat - Ventas por departamento
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/chat
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "pregunta": "¿Cuáles fueron las ventas en Lima este año?"
+  }
+}

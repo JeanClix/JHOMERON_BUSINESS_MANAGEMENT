@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "JHOMERON AI Service",
+    "description": "Microservicio FastAPI de Text-to-SQL sobre el Data Warehouse de ventas (dwh.*). Ver backend/intelligence/ai/README.md",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8090" }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+      }
+    },
+    {
+      "name": "Chat - Total de ventas",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pregunta\": \"¿Cuánto vendimos en total en soles?\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/chat", "host": ["{{baseUrl}}"], "path": ["chat"] }
+      }
+    },
+    {
+      "name": "Chat - Ventas por departamento",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pregunta\": \"¿Cuáles fueron las ventas en Lima este año?\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/chat", "host": ["{{baseUrl}}"], "path": ["chat"] }
+      }
+    },
+    {
+      "name": "Chat - Top productos",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pregunta\": \"¿Cuáles son los 5 productos más vendidos por total en soles?\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/chat", "host": ["{{baseUrl}}"], "path": ["chat"] }
+      }
+    },
+    {
+      "name": "Chat - Mejor vendedor",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pregunta\": \"¿Qué vendedor tuvo mayor monto de ventas?\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/chat", "host": ["{{baseUrl}}"], "path": ["chat"] }
+      }
+    },
+    {
+      "name": "Chat - Pregunta libre (editar body)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pregunta\": \"Escribe aquí tu pregunta\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/chat", "host": ["{{baseUrl}}"], "path": ["chat"] }
+      }
+    }
+  ]
+}

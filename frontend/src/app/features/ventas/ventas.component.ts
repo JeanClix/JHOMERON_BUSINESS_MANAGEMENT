@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { SidebarComponent } from '../../common/sidebar/sidebar.component';
 import { SidebarItem } from '../../common/sidebar-item/sidebar-item.component';
+import { VentasAiChatComponent } from './components/ventas-ai-chat/ventas-ai-chat.component';
 
 export interface JhomeronProduct {
   id: string;
@@ -22,7 +23,7 @@ export interface JhomeronProduct {
 @Component({
   selector: 'app-ventas',
   standalone: true,
-  imports: [CommonModule, RouterLink, SidebarComponent],
+  imports: [CommonModule, RouterLink, SidebarComponent, VentasAiChatComponent],
   templateUrl: './ventas.component.html'
 })
 export class VentasComponent {
@@ -74,10 +75,12 @@ export class VentasComponent {
     },
     {
       id: 'asistente_ia',
-      label: 'Asistente Técnico IA',
-      subtitle: 'Sistemas de pintado',
-      description: 'Asistente de inteligencia artificial para recomendar el esquema de pintado según ambiente y tipo de superficie.',
-      icon: 'fa-solid fa-robot'
+      label: 'Asistente de Ventas IA',
+      subtitle: 'Consulta datos reales',
+      description: 'Pregunta en lenguaje natural sobre tus ventas, clientes y productos: el asistente consulta directamente el Data Warehouse (sin datos inventados).',
+      icon: 'fa-solid fa-robot',
+      badge: 'Datos Reales',
+      badgeColor: 'bg-emerald-600'
     }
   ]);
 

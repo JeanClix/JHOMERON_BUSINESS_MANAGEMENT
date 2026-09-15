@@ -76,3 +76,17 @@ CREATE INDEX idx_ventas_vendedor ON staging.ventas(empleado_venta);
 CREATE INDEX idx_ventas_estado ON staging.ventas(estado);
 
 COMMENT ON TABLE staging.ventas IS 'Tabla de staging para ventas extraídas de SAP B1 vía sp_ExtraerVentas';
+
+-- ============================================================
+-- Control de watermark: evita reprocesar el mismo rango de fechas
+-- en corridas repetidas del batch (idempotencia + incrementalidad)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS staging.control_carga (
+    id SERIAL PRIMARY KEY,
+    job_name VARCHAR(100) NOT NULL UNIQUE,
+    fecha_hasta_procesada DATE NOT NULL,
+    fecha_ejecucion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    registros_extraidos INT
+);
+
+COMMENT ON TABLE staging.control_carga IS 'Watermark por job: hasta qué fecha_contabilizacion ya se extrajo de SAP, para no reprocesar el mismo rango en la siguiente corrida';

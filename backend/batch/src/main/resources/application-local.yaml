@@ -1,0 +1,50 @@
+# ============================================================
+# PERFIL LOCAL - Extracción SQL Server (Tailscale) -> Carga PostgreSQL LOCAL
+# ============================================================
+#
+# QUE USA:
+#   - SQL Server remoto (SAP B1) como fuente, igual que el perfil "neon"
+#   - PostgreSQL LOCAL (localhost:5432 / jhomeron_batch) como staging + dwh
+#   - Pensado para desarrollo/tuning del batch sin depender de Neon
+#     (sin autosuspend, sin PgBouncer, sin límites de plan free)
+#
+# REQUISITOS PREVIOS:
+#   1. PostgreSQL corriendo en localhost:5432
+#   2. Base de datos "jhomeron_batch" creada
+#   3. Schemas aplicados:
+#      psql -U postgres -d jhomeron_batch -f schemas/schema-staging.sql
+#      psql -U postgres -d jhomeron_batch -f schemas/schema-star.sql
+#
+# COMO EJECUTAR:
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+# ============================================================
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: ${LOCAL_PG_URL:jdbc:postgresql://localhost:5432/jhomeron_batch}
+    username: ${LOCAL_PG_USERNAME:postgres}
+    password: ${LOCAL_PG_PASSWORD:root}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: Local-Staging-Pool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: true
+      name: ventaEtlJob
+
+batch:
+  source: sqlserver
+
+logging:
+  level:
+    com.jhomeron.batch: DEBUG
+    org.springframework.batch: DEBUG
