@@ -1,0 +1,22 @@
+artifact_path: file:C:/Users/user/Desktop/Trabajo/JHOMERON_BUSINESS_MANAGEMENT/intelligence/ml/mlruns/1/models/m-83efbae4d87246dcb306c42d88d03725/artifacts
+flavors:
+  python_function:
+    data: model.ubj
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.13.12
+  xgboost:
+    code: null
+    data: model.ubj
+    model_class: xgboost.sklearn.XGBRegressor
+    model_format: ubj
+    xgb_version: 3.4.1
+mlflow_version: 3.16.0
+model_id: m-83efbae4d87246dcb306c42d88d03725
+model_size_bytes: 853203
+model_uuid: m-83efbae4d87246dcb306c42d88d03725
+prompts: null
+run_id: d4d2ddec54814914bc1a94a82f9059ba
+utc_time_created: '2026-09-16 04:21:35.833279'

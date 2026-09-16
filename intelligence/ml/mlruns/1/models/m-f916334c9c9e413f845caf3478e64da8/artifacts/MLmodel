@@ -1,0 +1,23 @@
+artifact_path: file:C:/Users/user/Desktop/Trabajo/JHOMERON_BUSINESS_MANAGEMENT/intelligence/ml/mlruns/1/models/m-f916334c9c9e413f845caf3478e64da8/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.13.12
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.1
+    skops_trusted_types: null
+mlflow_version: 3.16.0
+model_id: m-f916334c9c9e413f845caf3478e64da8
+model_size_bytes: 26366354
+model_uuid: m-f916334c9c9e413f845caf3478e64da8
+prompts: null
+run_id: 2a3718e1912e479d90baf0cd8fdddc5e
+utc_time_created: '2026-09-16 03:57:25.327309'

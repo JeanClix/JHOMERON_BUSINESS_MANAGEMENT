@@ -8,7 +8,10 @@ import { InsightCard } from '../../../../core/models/insight.model';
 import { KpiCardComponent } from '../../../../shared/components/kpi-card/kpi-card.component';
 import { BusinessChartComponent } from '../../../../shared/components/business-chart/business-chart.component';
 import { InsightCardComponent } from '../../../../shared/components/insight-card/insight-card.component';
+import { ForecastComparisonCardComponent } from '../../../../shared/components/forecast-comparison-card/forecast-comparison-card.component';
 import { GerenciaChatService } from '../../../../core/services/gerencia-chat.service';
+import { PrediccionService } from '../../../../core/services/prediccion.service';
+import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
 
 @Component({
   selector: 'app-gerencia-dashboard',
@@ -17,7 +20,8 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
     CommonModule,
     KpiCardComponent,
     BusinessChartComponent,
-    InsightCardComponent
+    InsightCardComponent,
+    ForecastComparisonCardComponent
   ],
   template: `
     <div class="space-y-6">
@@ -61,6 +65,16 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
           <app-kpi-card [metric]="kpi"></app-kpi-card>
         }
       </div>
+
+      <!-- Real vs. Predicción ML (Random Forest, Model Registry MLflow) -->
+      @if (prediccion()) {
+        <app-forecast-comparison-card [prediccion]="prediccion()!"></app-forecast-comparison-card>
+      } @else if (errorPrediccion()) {
+        <div class="rounded-2xl bg-white p-5 border border-rose-200 shadow-xs text-xs text-rose-600">
+          <i class="fa-solid fa-triangle-exclamation mr-1.5"></i>
+          No se pudo cargar la predicción del ML Service ({{ errorPrediccion() }}).
+        </div>
+      }
 
       <!-- Main Business Charts Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -111,6 +125,7 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
 export class GerenciaDashboardComponent implements OnInit {
   private dataService = inject(GerenciaDataService);
   private chatService = inject(GerenciaChatService);
+  private prediccionService = inject(PrediccionService);
   private router = inject(Router);
 
   kpis = signal<KpiMetric[]>([]);
@@ -120,6 +135,9 @@ export class GerenciaDashboardComponent implements OnInit {
   chartZone = signal<BusinessChartData | null>(null);
   insights = signal<InsightCard[]>([]);
 
+  prediccion = signal<PrediccionProximoMes | null>(null);
+  errorPrediccion = signal<string | null>(null);
+
   ngOnInit() {
     this.dataService.getExecutiveKpis().subscribe(data => this.kpis.set(data));
     this.dataService.getMonthlySalesChart().subscribe(data => this.chartSales.set(data));
@@ -127,6 +145,14 @@ export class GerenciaDashboardComponent implements OnInit {
     this.dataService.getTopProductsChart().subscribe(data => this.chartProducts.set(data));
     this.dataService.getZoneComparisonChart().subscribe(data => this.chartZone.set(data));
     this.dataService.getExecutiveInsights().subscribe(data => this.insights.set(data));
+    this.cargarPrediccion();
+  }
+
+  private cargarPrediccion() {
+    this.prediccionService.getPrediccionProximoMes(30).subscribe({
+      next: (pred) => this.prediccion.set(pred),
+      error: (err) => this.errorPrediccion.set(err?.status ? `HTTP ${err.status}` : 'sin conexión')
+    });
   }
 
   navigateToChat(prompt: string) {
