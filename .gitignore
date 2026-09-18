@@ -8,3 +8,6 @@ backend/batch/logs/
 .env.*
 !.env.example
 intelligence/ai/.venv/
+
+# MLflow
+mlruns/
