@@ -1,7 +1,7 @@
 import { Component, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { AuthService } from '../../../../core/services/auth.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 export interface NavGroup {
   groupLabel: string;

@@ -5,8 +5,10 @@ import com.jhomeron.admin.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -15,6 +17,8 @@ public class AuthController {
 
     @Autowired
     private UserRepository userRepository;
+
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
@@ -27,9 +31,17 @@ public class AuthController {
 
         User user = userRepository.findByUsername(username);
 
-        if (user != null && user.getPassword().equals(password)) {
-            // Success
-            return ResponseEntity.ok(user);
+        if (user != null && passwordEncoder.matches(password, user.getPassword())) {
+            // Nunca devolver el hash de la contraseña al frontend
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("id", user.getId());
+            body.put("username", user.getUsername());
+            body.put("name", user.getName());
+            body.put("description", user.getDescription());
+            body.put("area", user.getArea());
+            body.put("location", user.getLocation());
+            body.put("role", user.getRole());
+            return ResponseEntity.ok(body);
         }
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));

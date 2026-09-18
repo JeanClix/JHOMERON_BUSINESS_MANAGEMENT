@@ -8,6 +8,7 @@ import { GerenciaChatBarComponent } from '../components/chat-bar/gerencia-chat-b
 @Component({
   selector: 'app-gerencia-layout',
   standalone: true,
+  imports: [
     CommonModule,
     RouterOutlet,
     SidebarComponent,
