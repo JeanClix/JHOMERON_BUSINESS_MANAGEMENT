@@ -175,68 +175,6 @@ import { AuthService } from '../../core/services/auth.service';
               </button>
             </form>
 
-            <!-- DEMO QUICK ACCESS / TEST ACCOUNTS (Solución para pruebas rápidas) -->
-            <div class="pt-6 border-t border-slate-800 space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  ⚡ Accesos Rápidos de Prueba
-                </span>
-                <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">
-                  Un solo clic
-                </span>
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <!-- Direct Gerencia Login Button -->
-                <button
-                  type="button"
-                  (click)="loginAs('gerencia')"
-                  class="p-3 rounded-xl bg-slate-800/90 hover:bg-[#0c3c98]/30 border border-slate-700 hover:border-[#0c3c98] text-left transition-all group flex flex-col justify-between gap-2 cursor-pointer"
-                >
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-white group-hover:text-blue-300 flex items-center gap-1.5">
-                      <i class="fa-solid fa-chart-line text-amber-400"></i>
-                      Gerencia
-                    </span>
-                    <span class="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded">
-                      CEO / KPIs
-                    </span>
-                  </div>
-                  <div class="text-[11px] text-slate-400 font-mono">
-                    gerencia <span class="text-slate-600">/</span> admin
-                  </div>
-                  <div class="text-[10px] text-blue-400 flex items-center gap-1 pt-1 font-semibold group-hover:underline">
-                    <span>Ingresar a Gerencia</span>
-                    <i class="fa-solid fa-arrow-right text-[9px] group-hover:translate-x-0.5 transition-transform"></i>
-                  </div>
-                </button>
-
-                <!-- Direct Ventas Login Button -->
-                <button
-                  type="button"
-                  (click)="loginAs('ventas')"
-                  class="p-3 rounded-xl bg-slate-800/90 hover:bg-[#ef0606]/20 border border-slate-700 hover:border-[#ef0606]/50 text-left transition-all group flex flex-col justify-between gap-2 cursor-pointer"
-                >
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-white group-hover:text-red-300 flex items-center gap-1.5">
-                      <i class="fa-solid fa-cart-shopping text-[#ef0606]"></i>
-                      Ventas
-                    </span>
-                    <span class="text-[10px] bg-red-500/20 text-red-300 font-bold px-1.5 py-0.5 rounded">
-                      Comercial
-                    </span>
-                  </div>
-                  <div class="text-[11px] text-slate-400 font-mono">
-                    ventas <span class="text-slate-600">/</span> ventas
-                  </div>
-                  <div class="text-[10px] text-rose-400 flex items-center gap-1 pt-1 font-semibold group-hover:underline">
-                    <span>Ingresar a Ventas</span>
-                    <i class="fa-solid fa-arrow-right text-[9px] group-hover:translate-x-0.5 transition-transform"></i>
-                  </div>
-                </button>
-              </div>
-            </div>
-
           </div>
         </div>
 
@@ -259,7 +197,7 @@ export class LoginComponent {
   /**
    * Ejecuta el login manual procesando el formulario.
    */
-  onSubmit(): void {
+  async onSubmit(): Promise<void> {
     this.errorMessage.set('');
     this.successMessage.set('');
 
@@ -270,42 +208,26 @@ export class LoginComponent {
 
     this.isLoading.set(true);
 
-    // Simular una ligera latencia de autenticación para UX fluida
-    setTimeout(() => {
-      const response = this.authService.login({
-        usernameOrEmail: this.username,
-        password: this.password
-      });
+    const response = await this.authService.login({
+      usernameOrEmail: this.username,
+      password: this.password
+    });
 
-      this.isLoading.set(false);
+    this.isLoading.set(false);
 
-      if (response.success && response.user) {
-        const destLabel = response.user.role === 'gerencia' ? 'Gerencia Hub' : 'Ventas Comercial';
-        this.successMessage.set(`Acceso autorizado. Redirigiendo a ${destLabel}...`);
+    if (response.success && response.user) {
+      const destLabel = response.user.role === 'gerencia' ? 'Gerencia Hub' : response.user.role === 'admin' ? 'Admin Panel' : 'Ventas Comercial';
+      this.successMessage.set(`Acceso autorizado. Redirigiendo a ${destLabel}...`);
 
-        const targetRoute = this.authService.getDefaultRouteForRole(response.user.role);
-        setTimeout(() => {
-          this.router.navigate([targetRoute]);
-        }, 400);
-      } else {
-        this.errorMessage.set(
-          response.error || 'Credenciales incorrectas. Verifique los datos o use los accesos rápidos de prueba.'
-        );
-      }
-    }, 450);
-  }
-
-  /**
-   * Facilita acceso inmediato con las credenciales demo.
-   */
-  loginAs(role: 'gerencia' | 'ventas'): void {
-    if (role === 'gerencia') {
-      this.username = 'gerencia';
-      this.password = 'admin';
+      const targetRoute = this.authService.getDefaultRouteForRole(response.user.role);
+      setTimeout(() => {
+        this.router.navigate([targetRoute]);
+      }, 400);
     } else {
-      this.username = 'ventas';
-      this.password = 'ventas';
+      this.errorMessage.set(
+        response.error || 'Credenciales incorrectas. Verifique los datos.'
+      );
     }
-    this.onSubmit();
   }
+
 }

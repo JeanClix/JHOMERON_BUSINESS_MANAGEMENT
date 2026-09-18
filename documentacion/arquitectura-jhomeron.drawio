@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio-skill" agent="drawio-skill" version="3.4.0">
+  <diagram id="jhomeron-arquitectura" name="Arquitectura JHOMERON">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1380" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="t1" value="ACCESO Y CLIENTES" style="swimlane;startSize=30;fontStyle=1;fontSize=14;fillColor=#f5f7fa;strokeColor=#96a5b5;container=1;collapsible=0;horizontal=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="30" width="1640" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="frontend" value="Frontend Angular — SPA · port 4200 · Node ≥ 24&#xa;npm start → localhost:4200" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;verticalAlign=top;fontStyle=1;fontSize=13;fillColor=#e7eef6;strokeColor=#b3c4d8;container=1;collapsible=0;" vertex="1" parent="t1">
+          <mxGeometry x="310" y="55" width="950" height="165" as="geometry"/>
+        </mxCell>
+        <mxCell id="role1" value="Gerencia /&#xa;Analista" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="t1">
+          <mxGeometry x="65" y="70" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="role2" value="Ventas /&#xa;Administrador" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="t1">
+          <mxGeometry x="65" y="160" width="180" height="74" as="geometry"/>
+        </mxCell>
+        <mxCell id="geren" value="Área Gerencia —&#xa;dashboard · chat IA · insights · documentación" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="frontend">
+          <mxGeometry x="30" y="50" width="420" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="ventas" value="Área Ventas —&#xa;catálogo · cotizador · cartera de clientes · Asistente Ventas IA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="frontend">
+          <mxGeometry x="470" y="50" width="450" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_auth" value="Autenticación + RBAC&#xa;menú según rol (HU02-HU04)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="frontend">
+          <mxGeometry x="940" y="50" width="300" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="t2" value="SERVICIOS DE NEGOCIO E INTELIGENCIA" style="swimlane;startSize=30;fontStyle=1;fontSize=14;fillColor=#f5f7fa;strokeColor=#96a5b5;container=1;collapsible=0;horizontal=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="310" width="1640" height="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_api" value="Spring Boot — API de Negocio&#xa;(pendiente — HU26)&#xa;dashboards con datos reales" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="t2">
+          <mxGeometry x="40" y="60" width="330" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_ai" value="AI Service (FastAPI) · :8090&#xa;Text-to-SQL + tool-calling&#xa;auditoría en consulta_log" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="t2">
+          <mxGeometry x="410" y="60" width="400" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_ml" value="Intelligence (FastAPI) · :8091&#xa;feature engineering + predicción" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="t2">
+          <mxGeometry x="850" y="60" width="360" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_mlflow" value="MLflow&#xa;experimentos · Model Registry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5d5d5;strokeColor=#808080;fontSize=12;" vertex="1" parent="t2">
+          <mxGeometry x="1250" y="60" width="350" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_llm" value="LLM externo (configurable LLM_BASE_URL)&#xa;NVIDIA deepseek / OpenAI-compatible" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="t2">
+          <mxGeometry x="410" y="225" width="400" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="t3" value="PROCESO BATCH — ETL" style="swimlane;startSize=30;fontStyle=1;fontSize=14;fillColor=#f5f7fa;strokeColor=#96a5b5;container=1;collapsible=0;horizontal=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="670" width="1640" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_batch" value="Spring Batch ETL (Java) — extraer → staging → dwh&#xa;idempotente por watermark de fecha" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="t3">
+          <mxGeometry x="390" y="45" width="600" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_logs" value="Registro por corrida&#xa;control_carga · logs · errores" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="t3">
+          <mxGeometry x="1060" y="45" width="470" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="t4" value="FUENTES EXTERNAS" style="swimlane;startSize=30;fontStyle=1;fontSize=14;fillColor=#f5f7fa;strokeColor=#96a5b5;container=1;collapsible=0;horizontal=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="840" width="1640" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_sap" value="SAP Business One / SQL Server — dbo.SP_EXTRAER_VENTAS&#xa;(OINV · INV1 · OCRD · OSLP · OITM · OITB …)" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="t4">
+          <mxGeometry x="390" y="40" width="820" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="t5" value="PERSISTENCIA Y DATOS" style="swimlane;startSize=30;fontStyle=1;fontSize=14;fillColor=#f5f7fa;strokeColor=#96a5b5;container=1;collapsible=0;horizontal=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="990" width="1640" height="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="postgres" value="PostgreSQL — jhomeron_batch&#xa;(local :5432 · Neon cloud)" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;verticalAlign=top;fontStyle=1;fontSize=13;fillColor=#ebf5ec;strokeColor=#82b366;container=1;collapsible=0;" vertex="1" parent="t5">
+          <mxGeometry x="40" y="60" width="960" height="235" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging" value="staging.ventas&#xa;control_carga" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="postgres">
+          <mxGeometry x="30" y="60" width="250" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="dwh" value="dwh.* modelo estrella&#xa;fact_ventas (~525K filas)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="postgres">
+          <mxGeometry x="320" y="60" width="260" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ai" value="ai.* vistas de consulta&#xa;v_ventas · consulta_log · rol ai_readonly" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="postgres">
+          <mxGeometry x="610" y="60" width="320" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_parquet" value="Artefactos ML — data/&#xa;ventas_raw.parquet · ventas_features.parquet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="t5">
+          <mxGeometry x="1060" y="115" width="470" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_mlflowdb" value="mlflow.db (SQLite)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5d5d5;strokeColor=#808080;fontSize=11;" vertex="1" parent="t5">
+          <mxGeometry x="1060" y="225" width="470" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n_note" value="Próximos: margen bruto (HU34) · categoría (HU35) · backtest (HU32)" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#d6b656;fontSize=11;align=center;" vertex="1" parent="t5">
+          <mxGeometry x="1060" y="40" width="470" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_role_front1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="role1" target="frontend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_role_front2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="role2" target="frontend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_gapi" value="consume API real (HU26-31)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="geren" target="n_api">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_giai" value="chat IA de gerencia (HU27)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="geren" target="n_ai">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_vai" value="Asistente Ventas IA — POST /chat" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;strokeColor=#6c8ebf;endArrow=blockThin;endFill=1;strokeWidth=2;" edge="1" parent="1" source="ventas" target="n_ai">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_vapi" value="catálogo / cotizador (HU37)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="ventas" target="n_api">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_api_dwh" value="SELECT datos reales (pendiente)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;dashed=1;strokeColor=#d6b656;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_api" target="dwh">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_ai_llm" value="tool-calling" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_ai" target="n_llm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_ai_ai" value="SELECT v_ventas vía ai_readonly" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_ai" target="ai">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_ai_audit" value="INSERT consulta_log (auditoría)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;dashed=1;strokeColor=#9673a6;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_ai" target="ai">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_ai_ml" value="tool predecir_ventas (HU33)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;dashed=1;strokeColor=#9673a6;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_ai" target="n_ml">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_ml_dwh" value="extracción datos reales (ai_readonly)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_ml" target="dwh">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_ml_parq" value="escribe parquet" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_ml" target="n_parquet">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_ml_mf" value="trackea experimentos" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_ml" target="n_mlflow">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_mf_db" value="sqlite:///mlflow.db" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_mlflow" target="n_mlflowdb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_sap_batch" value="SP_EXTRAER_VENTAS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_sap" target="n_batch">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_batch_stg" value="solo fechas nuevas (watermark)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_batch" target="staging">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_stg_dwh" value="transforma a modelo estrella" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="staging" target="dwh">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_dwh_ai" value="propaga a vistas ai" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="dwh" target="ai">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_batch_logs" value="registra corrida" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="n_batch" target="n_logs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -51,6 +51,31 @@ export const routes: Routes = [
     ]
   },
   {
+    path: 'admin',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['admin', 'gerencia'] },
+    loadComponent: () => import('./features/admin/layout/admin-layout/admin-layout').then(m => m.AdminLayout),
+    children: [
+      {
+        path: '',
+        redirectTo: 'users',
+        pathMatch: 'full'
+      },
+      {
+        path: 'users',
+        loadComponent: () => import('./features/admin/users/user-list/user-list').then(m => m.UserList)
+      },
+      {
+        path: 'users/new',
+        loadComponent: () => import('./features/admin/users/user-form/user-form').then(m => m.UserForm)
+      },
+      {
+        path: 'users/edit/:id',
+        loadComponent: () => import('./features/admin/users/user-form/user-form').then(m => m.UserForm)
+      }
+    ]
+  },
+  {
     path: '**',
     redirectTo: 'login'
   }

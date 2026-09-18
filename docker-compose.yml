@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      - NODE_ENV=development
+    networks:
+      - jhomeron_net
+
+  batch:
+    build:
+      context: ./backend/batch
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - jhomeron_net
+
+  ai:
+    build:
+      context: ./backend/intelligence/ai
+    ports:
+      - "8090:8090"
+    env_file:
+      - ./backend/intelligence/ai/.env.local
+    networks:
+      - jhomeron_net
+
+  ml:
+    build:
+      context: ./backend/intelligence/ml
+    ports:
+      - "8091:8091"
+      - "5000:5000"
+    env_file:
+      - ./backend/intelligence/ml/.env.example # Usar .env.example por defecto, puede ser ajustado localmente a .env o .env.local
+    networks:
+      - jhomeron_net
+
+  admin:
+    build:
+      context: ./backend/admin
+    ports:
+      - "8092:8092"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - jhomeron_net
+
+networks:
+  jhomeron_net:
+    driver: bridge

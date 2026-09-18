@@ -1,17 +1,16 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { GerenciaSidebarComponent } from './gerencia-sidebar.component';
+import { SidebarComponent, NavGroup } from '../../../shared/components/sidebar/sidebar.component';
 import { GerenciaHeaderComponent } from './gerencia-header.component';
 import { GerenciaChatBarComponent } from '../components/chat-bar/gerencia-chat-bar.component';
 
 @Component({
   selector: 'app-gerencia-layout',
   standalone: true,
-  imports: [
     CommonModule,
     RouterOutlet,
-    GerenciaSidebarComponent,
+    SidebarComponent,
     GerenciaHeaderComponent,
     GerenciaChatBarComponent
   ],
@@ -20,10 +19,14 @@ import { GerenciaChatBarComponent } from '../components/chat-bar/gerencia-chat-b
       
       <!-- DESKTOP SIDEBAR -->
       <div class="hidden md:block shrink-0 h-screen sticky top-0 z-30">
-        <app-gerencia-sidebar
+        <app-sidebar
           [isCollapsed]="isSidebarCollapsed()"
+          [navGroups]="gerenciaNavGroups"
+          moduleName="Gerencia"
+          moduleIcon="fa-solid fa-chart-pie"
+          moduleRoute="/gerencia/dashboard"
           (toggleCollapse)="toggleSidebarCollapse()"
-        ></app-gerencia-sidebar>
+        ></app-sidebar>
       </div>
 
       <!-- MOBILE OFF-CANVAS DRAWER -->
@@ -42,9 +45,13 @@ import { GerenciaChatBarComponent } from '../components/chat-bar/gerencia-chat-b
             >
               <i class="fa-solid fa-xmark text-sm"></i>
             </button>
-            <app-gerencia-sidebar
+            <app-sidebar
               [isCollapsed]="false"
-            ></app-gerencia-sidebar>
+              [navGroups]="gerenciaNavGroups"
+              moduleName="Gerencia"
+              moduleIcon="fa-solid fa-chart-pie"
+              moduleRoute="/gerencia/dashboard"
+            ></app-sidebar>
           </div>
         </div>
       }
@@ -69,6 +76,62 @@ import { GerenciaChatBarComponent } from '../components/chat-bar/gerencia-chat-b
 export class GerenciaLayoutComponent {
   isSidebarCollapsed = signal<boolean>(false);
   isMobileMenuOpen = signal<boolean>(false);
+
+  gerenciaNavGroups: NavGroup[] = [
+    {
+      groupLabel: 'Centro de Decisiones',
+      items: [
+        {
+          id: 'dashboard',
+          label: 'Dashboard Ejecutivo',
+          route: '/gerencia/dashboard',
+          icon: 'fa-solid fa-chart-line',
+          badge: 'KPIs',
+          badgeColor: 'bg-[#ef0606] text-white'
+        },
+        {
+          id: 'documentacion',
+          label: 'Base Conocimiento DeepWiki',
+          route: '/gerencia/documentacion',
+          icon: 'fa-solid fa-book-bookmark',
+          badge: 'Docs',
+          badgeColor: 'bg-indigo-500 text-white'
+        }
+      ]
+    },
+    {
+      groupLabel: 'Inteligencia empresarial',
+      items: [
+        {
+          id: 'chat',
+          label: 'Asistente IA Gerencial',
+          route: '/gerencia/chat',
+          icon: 'fa-solid fa-robot',
+          badge: 'IA',
+          badgeColor: 'bg-emerald-500 text-white'
+        },
+        {
+          id: 'insights',
+          label: 'Insights & Reportes',
+          route: '/gerencia/insights',
+          icon: 'fa-solid fa-lightbulb'
+        }
+      ]
+    },
+    {
+      groupLabel: 'Administración',
+      items: [
+        {
+          id: 'admin-panel',
+          label: 'Panel de Administración',
+          route: '/admin',
+          icon: 'fa-solid fa-users-cog',
+          badge: 'Nuevo',
+          badgeColor: 'bg-blue-500 text-white'
+        }
+      ]
+    }
+  ];
 
   toggleSidebarCollapse() {
     this.isSidebarCollapsed.update(v => !v);

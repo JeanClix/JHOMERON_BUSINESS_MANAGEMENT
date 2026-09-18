@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthResponse, LoginCredentials, User, UserRole } from '../models/auth.model';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 
 const STORAGE_KEY = 'jhomeron_auth_user';
 
@@ -15,40 +17,7 @@ interface RegisteredAccount {
 })
 export class AuthService {
   private readonly router = inject(Router);
-
-  // Cuentas de demostración preconfiguradas
-  private readonly demoAccounts: RegisteredAccount[] = [
-    {
-      user: {
-        id: 'usr-gerencia-01',
-        username: 'gerencia',
-        email: 'gerencia@jhomeron.com',
-        name: 'Dirección General',
-        role: 'gerencia',
-        roleLabel: 'Dirección Gerencial',
-        title: 'CEO / Dirección Comercial',
-        area: 'Centro Inteligente de Decisiones',
-        avatarInitials: 'DG'
-      },
-      allowedUsernames: ['gerencia', 'gerencia@jhomeron.com', 'admin', 'admin@jhomeron.com', 'director'],
-      allowedPasswords: ['admin', 'admin123', 'gerencia', 'gerencia123', 'jhomeron2026']
-    },
-    {
-      user: {
-        id: 'usr-ventas-01',
-        username: 'ventas',
-        email: 'ventas@jhomeron.com',
-        name: 'Carlos Mendoza',
-        role: 'ventas',
-        roleLabel: 'Asesor Técnico Comercial',
-        title: 'Vendedor Comercial',
-        area: 'Asignado: Lima Norte',
-        avatarInitials: 'CM'
-      },
-      allowedUsernames: ['ventas', 'ventas@jhomeron.com', 'vendedor', 'vendedor@jhomeron.com', 'carlos'],
-      allowedPasswords: ['ventas', 'ventas123', '123456', 'vendedor123', 'jhomeron2026']
-    }
-  ];
+  private readonly http = inject(HttpClient);
 
   readonly currentUser = signal<User | null>(this.loadStoredUser());
   readonly isAuthenticated = computed(() => this.currentUser() !== null);
@@ -59,8 +28,8 @@ export class AuthService {
   /**
    * Intenta iniciar sesión con las credenciales proporcionadas.
    */
-  login(credentials: LoginCredentials): AuthResponse {
-    const rawIdentifier = (credentials.usernameOrEmail || '').trim().toLowerCase();
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    const rawIdentifier = (credentials.usernameOrEmail || '').trim();
     const rawPassword = (credentials.password || '').trim();
 
     if (!rawIdentifier || !rawPassword) {
@@ -70,29 +39,42 @@ export class AuthService {
       };
     }
 
-    const matchedAccount = this.demoAccounts.find(account => {
-      const matchUsername = account.allowedUsernames.some(
-        u => u.toLowerCase() === rawIdentifier
-      );
-      const matchPassword = account.allowedPasswords.includes(rawPassword);
-      return matchUsername && matchPassword;
-    });
+    try {
+       const res = await firstValueFrom(
+         this.http.post<any>('http://localhost:8092/api/auth/login', {
+           username: rawIdentifier,
+           password: rawPassword
+         })
+       );
+       
+       const roleLower = res.role ? res.role.toLowerCase() : 'ventas';
+       
+       const user: User = {
+          id: res.id ? res.id.toString() : '0',
+          username: res.username,
+          email: res.username + '@jhomeron.com',
+          name: res.name,
+          role: roleLower as UserRole,
+          roleLabel: res.role,
+          title: res.description || 'Usuario del sistema',
+          area: res.area || 'General',
+          avatarInitials: res.name ? res.name.charAt(0).toUpperCase() : 'U'
+       };
 
-    if (!matchedAccount) {
-      return {
-        success: false,
-        error: 'Credenciales inválidas. Compruebe el usuario o contraseña ingresados.'
-      };
+       this.saveUser(user);
+       this.currentUser.set(user);
+
+       return {
+         success: true,
+         user
+       };
+    } catch (err: any) {
+       console.error('Login error', err);
+       return {
+         success: false,
+         error: 'Credenciales inválidas. Compruebe el usuario o contraseña ingresados.'
+       };
     }
-
-    const user = matchedAccount.user;
-    this.saveUser(user);
-    this.currentUser.set(user);
-
-    return {
-      success: true,
-      user
-    };
   }
 
   /**
@@ -109,8 +91,8 @@ export class AuthService {
   /**
    * Retorna la ruta inicial predeterminada según el rol del usuario.
    */
-  getDefaultRouteForRole(role: UserRole): string {
-    return role === 'gerencia' ? '/gerencia/dashboard' : '/ventas';
+  getDefaultRouteForRole(role: string): string {
+    return role === 'gerencia' ? '/gerencia/dashboard' : role === 'admin' ? '/admin' : '/ventas';
   }
 
   private loadStoredUser(): User | null {
@@ -122,7 +104,7 @@ export class AuthService {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as User;
-      if (parsed && parsed.role && (parsed.role === 'gerencia' || parsed.role === 'ventas')) {
+      if (parsed && parsed.role) {
         return parsed;
       }
     } catch {
