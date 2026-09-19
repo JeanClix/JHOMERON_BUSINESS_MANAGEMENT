@@ -1,12 +1,11 @@
 import { Component, inject, input, output } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { SidebarItemComponent, SidebarItem } from '../sidebar-item/sidebar-item.component';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, SidebarItemComponent],
+  imports: [SidebarItemComponent],
   templateUrl: './sidebar.component.html',
   styleUrls: ['./sidebar.component.css']
 })

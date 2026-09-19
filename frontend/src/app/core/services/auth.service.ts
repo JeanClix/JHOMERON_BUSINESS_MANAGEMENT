@@ -46,19 +46,25 @@ export class AuthService {
            password: rawPassword
          })
        );
-       
-       const roleLower = res.role ? res.role.toLowerCase() : 'ventas';
-       
+
+       // Mapeo explicito (no un simple toLowerCase()): el rol que devuelve
+       // admin es 'VENDEDOR', que no coincide en texto con el UserRole
+       // 'ventas' que usa el resto del frontend (rutas, roleGuard,
+       // isVentas()) -- un toLowerCase() ciego dejaba 'vendedor' !== 'ventas'
+       // y rompia isVentas() en silencio.
+       const role = this.mapearRol(res.role);
+
        const user: User = {
           id: res.id ? res.id.toString() : '0',
           username: res.username,
           email: res.username + '@jhomeron.com',
           name: res.name,
-          role: roleLower as UserRole,
+          role,
           roleLabel: res.role,
           title: res.description || 'Usuario del sistema',
           area: res.area || 'General',
-          avatarInitials: res.name ? res.name.charAt(0).toUpperCase() : 'U'
+          avatarInitials: res.name ? res.name.charAt(0).toUpperCase() : 'U',
+          token: res.token
        };
 
        this.saveUser(user);
@@ -111,6 +117,19 @@ export class AuthService {
       localStorage.removeItem(STORAGE_KEY);
     }
     return null;
+  }
+
+  /** 'VENDEDOR' (admin) -> 'ventas' (frontend), 'GERENCIA' -> 'gerencia', 'ADMIN' -> 'admin'. */
+  private mapearRol(rolBackend: string | undefined): UserRole {
+    switch ((rolBackend || '').toUpperCase()) {
+      case 'GERENCIA':
+        return 'gerencia';
+      case 'ADMIN':
+        return 'admin';
+      case 'VENDEDOR':
+      default:
+        return 'ventas';
+    }
   }
 
   private saveUser(user: User): void {

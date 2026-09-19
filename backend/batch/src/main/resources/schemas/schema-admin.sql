@@ -8,7 +8,19 @@ CREATE TABLE IF NOT EXISTS usuarios (
   descripcion TEXT,
   area VARCHAR(100),
   ubicacion VARCHAR(255),
-  rol VARCHAR(50) NOT NULL -- 'ADMIN', 'GERENCIA', 'VENDEDOR'
+  rol VARCHAR(50) NOT NULL, -- 'ADMIN', 'GERENCIA', 'VENDEDOR'
+  -- Meta de venta mensual (S/), solo aplica a rol VENDEDOR. Base del "tachito
+  -- de pintura" de cumplimiento de cuota en el dashboard del vendedor.
+  meta_mensual NUMERIC(14, 2),
+  -- DEUDA TECNICA TEMPORAL (ver TODO / Fase 2): dwh.dim_vendedor solo tiene
+  -- el nombre libre que llega de SAP (OSLP.SlpName), sin un codigo estable
+  -- (SlpCode) todavia extraido por el batch. Mientras eso no se agregue al
+  -- SP de extraccion, este campo debe cargarse a mano al crear el vendedor
+  -- desde el panel admin, copiando EXACTAMENTE el valor de
+  -- dwh.dim_vendedor.empleado_venta para ese vendedor -- es el unico join
+  -- posible hoy entre "quien inicio sesion" y "de quien son estas ventas".
+  -- Cuando el batch extraiga SlpCode, esto se reemplaza por un codigo real.
+  vendedor_nombre_sap VARCHAR(150)
 );
 
 CREATE TABLE IF NOT EXISTS telemetria_ia (

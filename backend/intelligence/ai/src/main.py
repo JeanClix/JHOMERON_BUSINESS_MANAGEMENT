@@ -1,11 +1,14 @@
 """AI Service de JHOMERON: asistente de gerencia sobre el Data Warehouse
 de ventas, vía Text-to-SQL + tool-calling (no RAG, ver README de esta carpeta).
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .agent import responder_pregunta
+from .auth import get_bearer_token, require_vendedor
+from .recomendaciones import generar_recomendaciones
+from .reporting_client import ReportingClientError, obtener_clientes_inactivos
 
 app = FastAPI(title="JHOMERON AI Service", version="0.1.0")
 
@@ -45,3 +48,24 @@ def chat(request: PreguntaRequest):
         return responder_pregunta(request.pregunta)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error del asistente de IA: {e}")
+
+
+@app.get("/recomendaciones/reactivacion")
+def recomendaciones_reactivacion(
+    dias_umbral: int = 45,
+    limite: int = 15,
+    token: str = Depends(get_bearer_token),
+    vendedor: str = Depends(require_vendedor),
+):
+    """Candidatos a reactivacion del vendedor autenticado + recomendacion
+    redactada por el LLM. El calculo de quien es candidato viene de
+    backend/reporting (ver reporting_client.py); este endpoint solo agrega
+    el texto -- ver recomendaciones.py.
+    """
+    try:
+        clientes = obtener_clientes_inactivos(token, dias_umbral=dias_umbral, limite=limite)
+    except ReportingClientError as e:
+        raise HTTPException(status_code=502, detail=f"Error consultando reporting: {e}")
+
+    recomendaciones = generar_recomendaciones(vendedor, clientes)
+    return {"vendedor": vendedor, "dias_umbral": dias_umbral, "clientes": recomendaciones}

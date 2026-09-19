@@ -10,6 +10,14 @@ export interface User {
   title: string;
   area: string;
   avatarInitials: string;
+  /**
+   * JWT emitido por backend/admin (POST /api/auth/login). Se reenvia como
+   * "Authorization: Bearer <token>" a backend/reporting y a
+   * /recomendaciones/reactivacion de backend/intelligence/ai -- ambos
+   * derivan el vendedor/rol del token, nunca de un parametro que mande el
+   * cliente. Ver ReportingService.
+   */
+  token: string;
 }
 
 export interface LoginCredentials {

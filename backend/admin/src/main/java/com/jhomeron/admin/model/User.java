@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "usuarios")
 @Data
@@ -36,4 +38,14 @@ public class User {
 
     @Column(name = "rol", nullable = false, length = 50)
     private String role; // 'ADMIN', 'GERENCIA', 'VENDEDOR'
+
+    @Column(name = "meta_mensual", precision = 14, scale = 2)
+    private BigDecimal metaMensual; // Solo aplica a rol VENDEDOR
+
+    // DEUDA TECNICA TEMPORAL: unico join posible hoy entre este usuario y sus
+    // ventas en dwh.fact_ventas (via dwh.dim_vendedor.empleado_venta), hasta
+    // que el batch extraiga un codigo de vendedor estable (SlpCode) de SAP.
+    // Debe copiarse exacto al crear el vendedor desde el panel admin.
+    @Column(name = "vendedor_nombre_sap", length = 150)
+    private String vendedorNombreSap;
 }

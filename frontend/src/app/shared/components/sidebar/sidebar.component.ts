@@ -35,32 +35,23 @@ export interface NavGroup {
           </div>
         </div>
 
-        <!-- MODULE SWITCHER -->
+        <!-- IDENTIFICADOR DE ÁREA (sin link a Ventas: quien está en este
+             sidebar es GERENCIA o ADMIN, no un vendedor -- mostrar un
+             switcher hacia otra área con permisos distintos era confuso,
+             ver discusión de arquitectura). moduleName()/moduleIcon() ya
+             vienen correctos desde cada layout (Gerencia, Admin). -->
         <div class="mb-4 px-3">
-          @if (!isCollapsed()) {
-            <div class="rounded-xl bg-white/10 p-1 flex gap-1 text-xs">
-              <a
-                routerLink="/ventas"
-                class="flex-1 py-1.5 px-2 rounded-lg font-bold text-center text-slate-200 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center gap-1"
-              >
-                <i class="fa-solid fa-cart-shopping text-xs"></i> Ventas
-              </a>
-              <a
-                [routerLink]="moduleRoute()"
-                class="flex-1 py-1.5 px-2 rounded-lg font-bold text-center bg-[#ef0606] text-white shadow-xs flex items-center justify-center gap-1"
-              >
-                <i [class]="moduleIcon() + ' text-amber-400 text-xs'"></i> {{ moduleName() }}
-              </a>
-            </div>
-          } @else {
-            <a
-              [routerLink]="moduleRoute()"
-              class="flex h-9 w-9 mx-auto items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 hover:bg-[#ef0606] hover:text-white transition-colors"
-              [title]="'Ir a ' + moduleName()"
-            >
-              <i [class]="moduleIcon() + ' text-xs'"></i>
-            </a>
-          }
+          <div
+            class="rounded-xl bg-[#ef0606] px-3 py-1.5 flex items-center text-xs font-bold text-white shadow-xs"
+            [class.justify-center]="isCollapsed()"
+            [class.gap-2]="!isCollapsed()"
+            [title]="moduleName()"
+          >
+            <i [class]="moduleIcon() + ' text-xs'"></i>
+            @if (!isCollapsed()) {
+              <span>{{ moduleName() }}</span>
+            }
+          </div>
         </div>
 
         <!-- NAVEGACIÓN -->

@@ -11,32 +11,22 @@
       </div>
     </div>
 
-    <!-- MODULE SWITCHER (Ventas vs Gerencia Hub) -->
+    <!-- IDENTIFICADOR DE ÁREA (sin link a Gerencia: un vendedor no tiene
+         acceso a ese hub, ver roleGuard en app.routes.ts -- mostrar el link
+         era confuso/engañoso). Este sidebar solo se usa en /ventas, así que
+         la etiqueta es fija. -->
     <div class="mb-4 px-3">
-      @if (!isCollapsed()) {
-        <div class="rounded-xl bg-white/10 p-1 flex gap-1 text-xs">
-          <a
-            routerLink="/ventas"
-            class="flex-1 py-1.5 px-2 rounded-lg font-bold text-center bg-[#ef0606] text-white shadow-xs flex items-center justify-center gap-1"
-          >
-            <i class="fa-solid fa-cart-shopping text-xs"></i> Ventas
-          </a>
-          <a
-            routerLink="/gerencia/dashboard"
-            class="flex-1 py-1.5 px-2 rounded-lg font-bold text-center text-slate-200 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center gap-1"
-          >
-            <i class="fa-solid fa-chart-pie text-amber-400 text-xs"></i> Gerencia
-          </a>
-        </div>
-      } @else {
-        <a
-          routerLink="/gerencia/dashboard"
-          class="flex h-9 w-9 mx-auto items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 hover:bg-[#ef0606] hover:text-white transition-colors"
-          title="Ir a Gerencia Hub"
-        >
-          <i class="fa-solid fa-chart-pie text-xs"></i>
-        </a>
-      }
+      <div
+        class="rounded-xl bg-[#ef0606] px-3 py-1.5 flex items-center text-xs font-bold text-white shadow-xs"
+        [class.justify-center]="isCollapsed()"
+        [class.gap-2]="!isCollapsed()"
+        title="Portal de Ventas"
+      >
+        <i class="fa-solid fa-cart-shopping text-xs"></i>
+        @if (!isCollapsed()) {
+          <span>Ventas</span>
+        }
+      </div>
     </div>
 
     <!-- TÍTULO DE NAVEGACIÓN -->

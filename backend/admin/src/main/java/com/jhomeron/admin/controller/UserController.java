@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,7 @@ public class UserController {
         user.setDescription(body.get("description"));
         user.setArea(body.get("area"));
         user.setLocation(body.get("location"));
+        aplicarCamposVendedor(user, body);
 
         User guardado = userRepository.save(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(aRespuesta(guardado));
@@ -78,6 +80,7 @@ public class UserController {
             if (body.get("description") != null) user.setDescription(body.get("description"));
             if (body.get("area") != null) user.setArea(body.get("area"));
             if (body.get("location") != null) user.setLocation(body.get("location"));
+            aplicarCamposVendedor(user, body);
             // Solo re-hashear si mandan una contraseña nueva (no vaciar la existente)
             if (body.get("password") != null && !body.get("password").isBlank()) {
                 user.setPassword(passwordEncoder.encode(body.get("password")));
@@ -105,6 +108,29 @@ public class UserController {
         m.put("area", user.getArea());
         m.put("location", user.getLocation());
         m.put("role", user.getRole());
+        m.put("metaMensual", user.getMetaMensual());
+        m.put("vendedorNombreSap", user.getVendedorNombreSap());
         return m;
+    }
+
+    /**
+     * Campos que solo tienen sentido para rol VENDEDOR. metaMensual llega
+     * como string desde el body (Map<String,String>, igual que el resto de
+     * este controller) y se parsea a BigDecimal a mano.
+     *
+     * vendedorNombreSap es deuda tecnica temporal (ver User.java): debe
+     * copiarse EXACTO desde dwh.dim_vendedor.empleado_venta -- quien crea el
+     * vendedor en el panel admin es responsable de que coincida, hasta que
+     * el batch extraiga un codigo de vendedor estable de SAP.
+     */
+    private void aplicarCamposVendedor(User user, Map<String, String> body) {
+        if (body.containsKey("metaMensual")) {
+            String raw = body.get("metaMensual");
+            user.setMetaMensual(raw == null || raw.isBlank() ? null : new BigDecimal(raw));
+        }
+        if (body.containsKey("vendedorNombreSap")) {
+            String raw = body.get("vendedorNombreSap");
+            user.setVendedorNombreSap(raw == null || raw.isBlank() ? null : raw.trim());
+        }
     }
 }

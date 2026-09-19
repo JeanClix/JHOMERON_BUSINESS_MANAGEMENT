@@ -54,6 +54,16 @@ services:
     networks:
       - jhomeron_net
 
+  reporting:
+    build:
+      context: ./backend/reporting
+    ports:
+      - "8093:8093"
+    env_file:
+      - ./backend/reporting/.env.example # Usar .env.example por defecto, puede ser ajustado localmente a .env o .env.local
+    networks:
+      - jhomeron_net
+
 networks:
   jhomeron_net:
     driver: bridge

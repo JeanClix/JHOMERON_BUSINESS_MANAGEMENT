@@ -2,6 +2,7 @@ package com.jhomeron.admin.controller;
 
 import com.jhomeron.admin.model.User;
 import com.jhomeron.admin.repository.UserRepository;
+import com.jhomeron.admin.security.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,9 @@ public class AuthController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JwtService jwtService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -41,6 +45,12 @@ public class AuthController {
             body.put("area", user.getArea());
             body.put("location", user.getLocation());
             body.put("role", user.getRole());
+            body.put("metaMensual", user.getMetaMensual());
+            // Token de sesion: lo valida reporting (y a futuro ai/ml) para
+            // saber quien pregunta sin volver a llamar a admin. El frontend
+            // debe mandarlo como "Authorization: Bearer <token>" en cada
+            // request a esos servicios.
+            body.put("token", jwtService.generarToken(user));
             return ResponseEntity.ok(body);
         }
 

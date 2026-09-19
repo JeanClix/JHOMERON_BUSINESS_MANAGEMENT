@@ -1,0 +1,95 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { REPORTING_SERVICE_BASE_URL } from '../config/reporting-service.config';
+import { AuthService } from './auth.service';
+import {
+  ClientesInactivosResponse,
+  CuotaVendedor,
+  PeriodoModo,
+  ProductosVendedorResponse,
+  VentasPeriodoResponse
+} from '../models/reporting.model';
+
+/**
+ * Cliente HTTP hacia backend/reporting (endpoints /vendedores/me/*).
+ *
+ * Cada request manda el JWT del usuario logueado como
+ * "Authorization: Bearer <token>" -- reporting deriva el vendedor del
+ * token, nunca de un parámetro que mande este servicio (ver
+ * backend/reporting/src/auth.py). Si no hay token (no logueado, o el
+ * usuario no es VENDEDOR), reporting responde 401/403/409 y se propaga
+ * como error del Observable/Promise.
+ */
+@Injectable({
+  providedIn: 'root'
+})
+export class ReportingService {
+  private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
+
+  private authHeaders(): HttpHeaders {
+    const token = this.authService.currentUser()?.token;
+    return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
+  }
+
+  getCuota(anio: number, mes: number): Promise<CuotaVendedor> {
+    const params = new HttpParams().set('anio', anio).set('mes', mes);
+    return firstValueFrom(
+      this.http.get<CuotaVendedor>(`${REPORTING_SERVICE_BASE_URL}/vendedores/me/cuota`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getVentasPeriodo(opts: {
+    modo: PeriodoModo;
+    anio: number;
+    mes: number;
+    anioIso: number;
+    semanaIso: number;
+  }): Promise<VentasPeriodoResponse> {
+    const params = new HttpParams()
+      .set('modo', opts.modo)
+      .set('anio', opts.anio)
+      .set('mes', opts.mes)
+      .set('anio_iso', opts.anioIso)
+      .set('semana_iso', opts.semanaIso);
+    return firstValueFrom(
+      this.http.get<VentasPeriodoResponse>(`${REPORTING_SERVICE_BASE_URL}/vendedores/me/ventas`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getProductosTop(
+    anio: number,
+    mes: number,
+    orden: 'asc' | 'desc' = 'desc',
+    limite = 5
+  ): Promise<ProductosVendedorResponse> {
+    const params = new HttpParams()
+      .set('anio', anio)
+      .set('mes', mes)
+      .set('orden', orden)
+      .set('limite', limite);
+    return firstValueFrom(
+      this.http.get<ProductosVendedorResponse>(`${REPORTING_SERVICE_BASE_URL}/vendedores/me/productos`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getClientesInactivos(diasUmbral = 45, limite = 5): Promise<ClientesInactivosResponse> {
+    const params = new HttpParams().set('dias_umbral', diasUmbral).set('limite', limite);
+    return firstValueFrom(
+      this.http.get<ClientesInactivosResponse>(`${REPORTING_SERVICE_BASE_URL}/vendedores/me/clientes-inactivos`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+}

@@ -14,7 +14,15 @@ Angular (frontend/)
     ├──→ AI Service (backend/intelligence/ai) ──→ PostgreSQL (ai.v_ventas, solo lectura)
     │        Text-to-SQL + tool-calling, NO RAG (datos estructurados)
     │
-    └──→ (pendiente) Spring Boot API de negocio
+    ├──→ Admin Service (backend/admin) ──→ PostgreSQL (usuarios)
+    │        Identidad/config: login (emite JWT), gestión de usuarios/vendedores
+    │        y su meta mensual desde el panel admin.
+    │
+    └──→ Reporting Service (backend/reporting) ──→ PostgreSQL (bi.*, solo lectura)
+             Endpoints REST deterministicos (sin LLM) para los dashboards de
+             Vendedores y Gerencia. Valida el JWT emitido por Admin; cada
+             vendedor solo ve sus propios datos (nunca por parámetro del
+             cliente, siempre por claim del token).
 
 Spring Batch (backend/batch) ──→ SQL Server / SAP B1 ──→ staging ──→ dwh.* (modelo estrella)
 
@@ -79,7 +87,35 @@ del Data Warehouse, con tracking en MLflow.
   pedir una predicción al modelo ML (futuro) — ver discusión de arquitectura
   más abajo.
 
-### 4. `frontend` — Angular
+### 4. `backend/admin` — Admin Service (Spring Boot, Java)
+
+Identidad y configuración: login (`POST /api/auth/login`, emite un JWT
+HS256 además del usuario) y CRUD de usuarios/vendedores (`/api/admin/users`,
+protegido por el JWT — requiere rol `ADMIN`).
+
+- Desde acá se crean los vendedores (`rol=VENDEDOR`) y se configuran dos
+  campos nuevos: `metaMensual` (meta de venta del mes, base del % de
+  cumplimiento de cuota) y `vendedorNombreSap` (deuda técnica temporal: debe
+  copiarse exacto desde `dwh.dim_vendedor.empleado_venta` — no hay todavía
+  un código de vendedor estable de SAP extraído por el batch, ver más abajo).
+- **Correr**: `cd backend/admin && ./mvnw spring-boot:run`.
+
+### 5. `backend/reporting` — Reporting Service (FastAPI, Python)
+
+Endpoints REST deterministicos (sin LLM) para los dashboards de **Vendedores**
+y **Gerencia** — a diferencia de `ai`, esto no pasa por un LLM: son
+agregaciones SQL directas sobre un schema propio (`bi.*`), con el mismo
+patrón de rol de solo lectura que `ai_readonly` (ver
+`backend/batch/src/main/resources/schemas/schema-bi.sql`).
+
+- Valida el JWT que emite `admin` (mismo `JWT_SECRET`); cada vendedor ve
+  sus propios datos porque el endpoint lee el vendedor del claim del token,
+  nunca de un parámetro que mande el cliente.
+- **Correr**: `cd backend/reporting && .venv/Scripts/python.exe -m uvicorn src.main:app --port 8093`.
+- Detalle completo, endpoints y deuda técnica conocida:
+  [`backend/reporting/README.md`](backend/reporting/README.md).
+
+### 6. `frontend` — Angular
 
 - **Área de Gerencia** (`/gerencia`): dashboard, chat IA (hoy con datos simulados,
   pendiente de conectar al AI Service real), documentación, insights.
@@ -96,11 +132,13 @@ del Data Warehouse, con tracking en MLflow.
 
 1. PostgreSQL local corriendo, base `jhomeron_batch` con los schemas de
    `backend/batch/src/main/resources/schemas/` aplicados (`schema-staging.sql`,
-   `schema-star.sql`, `schema-ai.sql`).
+   `schema-star.sql`, `schema-ai.sql`, `schema-admin.sql`, `schema-bi.sql`).
 2. Batch: `cd backend/batch && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local`
 3. AI Service: `cd backend/intelligence/ai && .venv/Scripts/python.exe -m uvicorn src.main:app --port 8090`
-4. Frontend: `cd frontend && npm start`
-5. (Opcional) ML: `cd intelligence/ml && .venv/Scripts/python.exe -m src.training.compare_models`
+4. Admin Service: `cd backend/admin && ./mvnw spring-boot:run` (emite el JWT que valida Reporting)
+5. Reporting Service: `cd backend/reporting && .venv/Scripts/python.exe -m uvicorn src.main:app --port 8093`
+6. Frontend: `cd frontend && npm start`
+7. (Opcional) ML: `cd intelligence/ml && .venv/Scripts/python.exe -m src.training.compare_models`
 
 ## Decisiones de arquitectura relevantes (por qué, no solo qué)
 

@@ -25,6 +25,14 @@ spring:
 server:
   port: 8092
 
+# Secreto compartido con backend/reporting (y a futuro ai/ml) para validar el
+# JWT emitido en /api/auth/login sin llamar de vuelta a admin en cada request.
+# DEV ONLY: en produccion esto viene de una variable de entorno real, nunca
+# del valor por defecto de este archivo.
+jwt:
+  secret: ${JWT_SECRET:jhomeron-dev-secret-cambiar-en-produccion-32+chars}
+  expiration-ms: ${JWT_EXPIRATION_MS:28800000} # 8 horas
+
 # Development Profile Override
 ---
 spring:
