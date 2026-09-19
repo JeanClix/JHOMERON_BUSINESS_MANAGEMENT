@@ -72,6 +72,10 @@ export const routes: Routes = [
       {
         path: 'users/edit/:id',
         loadComponent: () => import('./features/admin/users/user-form/user-form').then(m => m.UserForm)
+      },
+      {
+        path: 'users/meta',
+        loadComponent: () => import('./features/admin/users/meta-vendedores/meta-vendedores').then(m => m.MetaVendedores)
       }
     ]
   },

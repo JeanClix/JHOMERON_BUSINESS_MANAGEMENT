@@ -4,12 +4,18 @@
       <h3 class="text-2xl font-bold text-[#0d3393]">Usuarios del Sistema</h3>
       <p class="text-sm text-slate-500 mt-1">Gestiona los accesos y roles de la plataforma</p>
     </div>
-    <button routerLink="new" class="flex items-center space-x-2 bg-[#0d3393] hover:bg-[#0b2670] text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-      </svg>
-      <span>Nuevo Usuario</span>
-    </button>
+    <div class="flex items-center gap-3">
+      <button routerLink="meta" class="flex items-center space-x-2 bg-white border border-[#0d3393] text-[#0d3393] hover:bg-blue-50 px-5 py-2.5 rounded-xl font-medium transition-colors">
+        <i class="fa-solid fa-bullseye fa-font-solid"></i>
+        <span>Meta Establecida</span>
+      </button>
+      <button routerLink="new" class="flex items-center space-x-2 bg-[#0d3393] hover:bg-[#0b2670] text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        <span>Nuevo Usuario</span>
+      </button>
+    </div>
   </div>
 
   @if (errorMessage()) {

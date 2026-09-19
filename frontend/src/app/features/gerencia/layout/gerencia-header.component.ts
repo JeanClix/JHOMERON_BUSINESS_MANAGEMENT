@@ -33,7 +33,7 @@ import { AuthService } from '../../../core/services/auth.service';
       <div class="flex items-center gap-4">
         <div class="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
           <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Planta & Ventas Operativas (100%)</span>
+          <span>Conectado</span>
         </div>
 
         <!-- User Profile Avatar & Logout -->
@@ -46,7 +46,7 @@ import { AuthService } from '../../../core/services/auth.service';
               {{ authService.currentUser()?.name || 'Dirección General' }}
             </span>
             <span class="text-[10px] text-slate-500 font-semibold">
-              {{ authService.currentUser()?.area || 'CEO / Comercial' }}
+              {{ (authService.currentUser()?.roleLabel | titlecase) || 'Gerencia' }}
             </span>
           </div>
 

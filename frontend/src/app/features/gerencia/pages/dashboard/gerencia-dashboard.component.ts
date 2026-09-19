@@ -81,16 +81,18 @@ import { PrediccionProximoMes, ProductoProyectado } from '../../../../core/model
         <div class="flex items-center gap-2">
           <button
             (click)="mesAnterior()"
-            class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors"
-            title="Mes anterior"
+            [disabled]="!puedeMesAnterior()"
+            class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
+            [title]="puedeMesAnterior() ? 'Mes anterior' : 'No hay datos antes de este mes'"
           >
             <i class="fa-solid fa-chevron-left text-xs"></i>
           </button>
           <span class="text-xs font-bold text-slate-900 min-w-[10rem] text-center">{{ periodoLabel() }}</span>
           <button
             (click)="mesSiguiente()"
-            class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors"
-            title="Mes siguiente"
+            [disabled]="!puedeMesSiguiente()"
+            class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
+            [title]="puedeMesSiguiente() ? 'Mes siguiente' : 'Ese mes todavía no comienza'"
           >
             <i class="fa-solid fa-chevron-right text-xs"></i>
           </button>
@@ -374,6 +376,26 @@ export class GerenciaDashboardComponent {
   protected readonly filtroAnio = signal<number>(this.hoy.getFullYear());
   protected readonly filtroMes = signal<number>(this.hoy.getMonth() + 1);
 
+  // MIN(fecha) real en dwh.fact_ventas (mismo límite que el dashboard de
+  // ventas, ver ventas.component.ts) -- no se puede navegar a un mes que
+  // empiece antes de esto porque no hay datos cargados, ni a un mes que
+  // todavía no haya empezado respecto a hoy.
+  private readonly limiteInferiorDatos = new Date(2024, 0, 11);
+
+  protected readonly puedeMesAnterior = computed(() => {
+    const mesAnterior = this.filtroMes() === 1 ? 12 : this.filtroMes() - 1;
+    const anioAnterior = this.filtroMes() === 1 ? this.filtroAnio() - 1 : this.filtroAnio();
+    const ultimoDiaMesAnterior = new Date(anioAnterior, mesAnterior, 0);
+    return ultimoDiaMesAnterior >= this.limiteInferiorDatos;
+  });
+
+  protected readonly puedeMesSiguiente = computed(() => {
+    const mesSiguiente = this.filtroMes() === 12 ? 1 : this.filtroMes() + 1;
+    const anioSiguiente = this.filtroMes() === 12 ? this.filtroAnio() + 1 : this.filtroAnio();
+    const primerDiaMesSiguiente = new Date(anioSiguiente, mesSiguiente - 1, 1);
+    return primerDiaMesSiguiente <= this.hoy;
+  });
+
   protected readonly cargandoReporte = signal<boolean>(true);
   protected readonly errorReporte = signal<string | null>(null);
 
@@ -532,11 +554,13 @@ export class GerenciaDashboardComponent {
   }
 
   protected mesAnterior() {
+    if (!this.puedeMesAnterior()) return;
     this.moverMes(-1);
     this.cargarReportePeriodo();
   }
 
   protected mesSiguiente() {
+    if (!this.puedeMesSiguiente()) return;
     this.moverMes(1);
     this.cargarReportePeriodo();
   }

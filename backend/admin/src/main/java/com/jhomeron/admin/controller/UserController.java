@@ -102,7 +102,17 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String nuevoUsername = body.get("username");
+        if (nuevoUsername != null && !nuevoUsername.isBlank()) {
+            User existente = userRepository.findByUsername(nuevoUsername);
+            if (existente != null && !existente.getId().equals(id)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("error", "Ya existe un usuario con ese nombre de usuario"));
+            }
+        }
+
         return userRepository.findById(id).map(user -> {
+            if (nuevoUsername != null && !nuevoUsername.isBlank()) user.setUsername(nuevoUsername);
             if (body.get("name") != null) user.setName(body.get("name"));
             if (body.get("role") != null) user.setRole(body.get("role").toUpperCase());
             if (body.get("description") != null) user.setDescription(body.get("description"));

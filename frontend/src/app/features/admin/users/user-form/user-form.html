@@ -84,62 +84,55 @@
         </div>
       }
 
-      <!-- Zona de venta: dónde vende este usuario, no una dirección libre -->
-      <div>
-        <label class="block text-sm font-medium text-slate-700 mb-2">Zona de Venta</label>
-        <div class="flex gap-3">
-          <label class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border cursor-pointer transition-colors"
-                 [class.border-blue-500]="userForm.value.zona === 'LIMA'"
-                 [class.bg-blue-50]="userForm.value.zona === 'LIMA'"
-                 [class.border-slate-200]="userForm.value.zona !== 'LIMA'">
-            <input type="radio" formControlName="zona" value="LIMA" class="accent-blue-600" />
-            <span class="text-sm font-medium text-slate-700">Lima</span>
-          </label>
-          <label class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border cursor-pointer transition-colors"
-                 [class.border-blue-500]="userForm.value.zona === 'PROVINCIA'"
-                 [class.bg-blue-50]="userForm.value.zona === 'PROVINCIA'"
-                 [class.border-slate-200]="userForm.value.zona !== 'PROVINCIA'">
-            <input type="radio" formControlName="zona" value="PROVINCIA" class="accent-blue-600" />
-            <span class="text-sm font-medium text-slate-700">Provincia</span>
-          </label>
-        </div>
-
-        @if (userForm.value.zona === 'PROVINCIA') {
-          <div class="mt-3 rounded-xl border border-slate-200 p-3">
-            <p class="text-xs text-slate-500 mb-2">Departamentos donde vende (según los datos reales de SAP):</p>
-            <div class="flex flex-wrap gap-2">
-              @for (dep of departamentosProvincia; track dep.codigo) {
-                <button
-                  type="button"
-                  (click)="toggleDepartamento(dep.codigo)"
-                  [class]="
-                    'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ' +
-                    (departamentosSeleccionados().has(dep.codigo)
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300')
-                  "
-                >
-                  {{ dep.nombre }}
-                </button>
-              }
-            </div>
-          </div>
-        }
-      </div>
-
-      <!-- Campos exclusivos de VENDEDOR: meta y vínculo con SAP -->
+      <!-- Zona de venta: solo aplica a VENDEDOR -- gerencia y admin ven toda la empresa, no una zona -->
       @if (esVendedor()) {
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">Meta Mensual S/ (Opcional)</label>
-            <input type="number" formControlName="metaMensual" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" placeholder="Ej: 80000" />
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Zona de Venta</label>
+          <div class="flex gap-3">
+            <label class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border cursor-pointer transition-colors"
+                   [class.border-blue-500]="userForm.value.zona === 'LIMA'"
+                   [class.bg-blue-50]="userForm.value.zona === 'LIMA'"
+                   [class.border-slate-200]="userForm.value.zona !== 'LIMA'">
+              <input type="radio" formControlName="zona" value="LIMA" class="accent-blue-600" />
+              <span class="text-sm font-medium text-slate-700">Lima</span>
+            </label>
+            <label class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border cursor-pointer transition-colors"
+                   [class.border-blue-500]="userForm.value.zona === 'PROVINCIA'"
+                   [class.bg-blue-50]="userForm.value.zona === 'PROVINCIA'"
+                   [class.border-slate-200]="userForm.value.zona !== 'PROVINCIA'">
+              <input type="radio" formControlName="zona" value="PROVINCIA" class="accent-blue-600" />
+              <span class="text-sm font-medium text-slate-700">Provincia</span>
+            </label>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">Meta Semanal S/ (Opcional)</label>
-            <input type="number" formControlName="metaSemanal" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" placeholder="Ej: 20000" />
-          </div>
-        </div>
 
+          @if (userForm.value.zona === 'PROVINCIA') {
+            <div class="mt-3 rounded-xl border border-slate-200 p-3">
+              <p class="text-xs text-slate-500 mb-2">Departamentos donde vende (según los datos reales de SAP):</p>
+              <div class="flex flex-wrap gap-2">
+                @for (dep of departamentosProvincia; track dep.codigo) {
+                  <button
+                    type="button"
+                    (click)="toggleDepartamento(dep.codigo)"
+                    [class]="
+                      'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ' +
+                      (departamentosSeleccionados().has(dep.codigo)
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300')
+                    "
+                  >
+                    {{ dep.nombre }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Campo exclusivo de VENDEDOR: vínculo con SAP. La meta mensual/semanal
+           NO se edita aquí -- es la misma para todo el equipo, se fija desde
+           "Meta Establecida" en la lista de usuarios (ver meta-vendedores). -->
+      @if (esVendedor()) {
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-2">Vendedor SAP (empleado_venta exacto)</label>
           <input type="text" formControlName="vendedorNombreSap" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow font-mono text-sm" placeholder="Ej: MAGUIÑA ASIS JUAN CARLOS" />

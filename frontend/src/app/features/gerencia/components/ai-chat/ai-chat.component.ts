@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, inject, signal, AfterViewChecked } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GerenciaChatService } from '../../../../core/services/gerencia-chat.service';
@@ -31,14 +31,24 @@ import { ChatMessageComponent } from './chat-message.component';
           </div>
         </div>
 
-        <button
-          type="button"
-          (click)="chatService.clearHistory()"
-          class="rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors shadow-2xs"
-          title="Borrar conversación"
-        >
-          <i class="fa-solid fa-trash-can mr-1.5 text-xs"></i>Limpiar
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            (click)="chatService.clearHistory()"
+            class="rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors shadow-2xs"
+            title="Borrar la conversación actual"
+          >
+            <i class="fa-solid fa-trash-can mr-1.5 text-xs"></i>Limpiar
+          </button>
+          <button
+            type="button"
+            (click)="chatService.nuevoChat()"
+            class="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors shadow-2xs"
+            title="Empezar una conversación nueva"
+          >
+            <i class="fa-solid fa-plus mr-1.5 text-xs text-[#0d3393]"></i>Nuevo Chat
+          </button>
+        </div>
       </div>
 
       <!-- Preset Prompts Carousel / Grid -->
@@ -65,7 +75,7 @@ import { ChatMessageComponent } from './chat-message.component';
           ></app-chat-message>
         }
 
-        @if (isLoading()) {
+        @if (chatService.isChatLoading()) {
           <div class="flex items-center gap-3 text-xs text-slate-500 mb-4 bg-white p-3.5 rounded-2xl border border-slate-200 w-fit shadow-2xs">
             <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0d3393] text-white">
               <i class="fa-solid fa-robot text-xs animate-spin"></i>
@@ -90,17 +100,17 @@ import { ChatMessageComponent } from './chat-message.component';
               type="text"
               [(ngModel)]="userInputText"
               name="userInputText"
-              [disabled]="isLoading()"
+              [disabled]="chatService.isChatLoading()"
               placeholder="Realiza una pregunta sobre ventas, márgenes, tendencias o documentos..."
-              class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-xs text-slate-900 placeholder-slate-400 focus:border-[#0d3393] focus:bg-white focus:outline-none transition-colors pr-10"
+              class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0d3393] focus:bg-white focus:outline-none transition-colors pr-10"
             />
-            <i class="fa-solid fa-sparkles text-[#0d3393] absolute right-3 top-1/2 -translate-y-1/2 text-xs"></i>
+            <i class="fa-solid fa-sparkles text-[#0d3393] absolute right-3.5 top-1/2 -translate-y-1/2 text-sm"></i>
           </div>
 
           <button
             type="submit"
-            [disabled]="!userInputText.trim() || isLoading()"
-            class="rounded-xl bg-[#0d3393] hover:bg-[#0b2670] disabled:opacity-50 text-white px-5 py-3 text-xs font-bold transition-all shadow-xs flex items-center gap-2"
+            [disabled]="!userInputText.trim() || chatService.isChatLoading()"
+            class="rounded-xl bg-[#0d3393] hover:bg-[#0b2670] disabled:opacity-50 text-white px-6 py-3.5 text-sm font-bold transition-all shadow-xs flex items-center gap-2"
           >
             <span>Enviar</span>
             <i class="fa-solid fa-paper-plane text-xs"></i>
@@ -118,14 +128,13 @@ export class AiChatComponent implements AfterViewChecked {
 
   chatService = inject(GerenciaChatService);
   userInputText = '';
-  isLoading = signal<boolean>(false);
 
   ngAfterViewChecked() {
     this.scrollToBottom();
   }
 
   onSubmit() {
-    if (this.userInputText.trim() && !this.isLoading()) {
+    if (this.userInputText.trim() && !this.chatService.isChatLoading()) {
       const query = this.userInputText.trim();
       this.userInputText = '';
       this.sendUserQuery(query);
@@ -133,15 +142,8 @@ export class AiChatComponent implements AfterViewChecked {
   }
 
   sendUserQuery(query: string) {
-    this.isLoading.set(true);
-    this.chatService.sendMessage(query).subscribe({
-      next: () => {
-        this.isLoading.set(false);
-      },
-      error: () => {
-        this.isLoading.set(false);
-      }
-    });
+    if (this.chatService.isChatLoading()) return;
+    this.chatService.sendMessage(query).subscribe();
   }
 
   private scrollToBottom() {

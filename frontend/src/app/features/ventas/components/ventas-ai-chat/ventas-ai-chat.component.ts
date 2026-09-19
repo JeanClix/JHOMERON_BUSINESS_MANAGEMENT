@@ -47,14 +47,24 @@ import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
             </div>
           </div>
 
-          <button
-            type="button"
-            (click)="limpiar()"
-            class="rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors shadow-2xs"
-            title="Borrar conversación"
-          >
-            <i class="fa-solid fa-trash-can mr-1.5 text-xs"></i>Limpiar
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="limpiar()"
+              class="rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors shadow-2xs"
+              title="Borrar la conversación actual"
+            >
+              <i class="fa-solid fa-trash-can mr-1.5 text-xs"></i>Limpiar
+            </button>
+            <button
+              type="button"
+              (click)="nuevoChat()"
+              class="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors shadow-2xs"
+              title="Empezar una conversación nueva"
+            >
+              <i class="fa-solid fa-plus mr-1.5 text-xs text-[#0d3393]"></i>Nuevo Chat
+            </button>
+          </div>
         </div>
 
         <!-- Chips de preguntas frecuentes -->
@@ -153,15 +163,15 @@ import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
                 name="userInputText"
                 [disabled]="chatService.isLoading()"
                 placeholder="Pregunta sobre tus ventas, clientes o productos..."
-                class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-xs text-slate-900 placeholder-slate-400 focus:border-[#0d3393] focus:bg-white focus:outline-none transition-colors pr-10"
+                class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0d3393] focus:bg-white focus:outline-none transition-colors pr-10"
               />
-              <i class="fa-solid fa-sparkles text-[#0d3393] absolute right-3 top-1/2 -translate-y-1/2 text-xs"></i>
+              <i class="fa-solid fa-sparkles text-[#0d3393] absolute right-3.5 top-1/2 -translate-y-1/2 text-sm"></i>
             </div>
 
             <button
               type="submit"
               [disabled]="!userInputText.trim() || chatService.isLoading()"
-              class="rounded-xl bg-[#0d3393] hover:bg-[#0b2670] disabled:opacity-50 text-white px-5 py-3 text-xs font-bold transition-all shadow-xs flex items-center gap-2"
+              class="rounded-xl bg-[#0d3393] hover:bg-[#0b2670] disabled:opacity-50 text-white px-6 py-3.5 text-sm font-bold transition-all shadow-xs flex items-center gap-2"
             >
               <span>Enviar</span>
               <i class="fa-solid fa-paper-plane text-xs"></i>
@@ -262,6 +272,14 @@ export class VentasAiChatComponent implements AfterViewChecked {
 
   limpiar() {
     this.selectedMessageId.set(null);
+    this.chatService.clearHistory();
+  }
+
+  /** Igual que "Limpiar" pero además vacía el caché de gráficos y cierra el
+   * panel de detalle -- un reinicio completo, no solo el mensaje visible. */
+  nuevoChat() {
+    this.selectedMessageId.set(null);
+    this.chartCache.clear();
     this.chatService.clearHistory();
   }
 

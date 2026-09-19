@@ -55,26 +55,26 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
         </div>
 
         <!-- Main Input Bar -->
-        <form (ngSubmit)="onFormSubmit()" class="flex items-center gap-2">
+        <form (ngSubmit)="onFormSubmit()" class="flex items-center gap-2.5">
           <div class="relative flex-1">
             <input
               type="text"
               [(ngModel)]="queryInput"
               name="queryInput"
               [disabled]="isBusy()"
-              placeholder="🤖 Pregunta a Gerencia... (ej. ¿Cómo están las ventas este mes?)"
-              class="w-full rounded-2xl border border-slate-300/80 bg-slate-50/80 backdrop-blur-xs pl-10 pr-4 py-2.5 text-xs font-medium text-slate-900 placeholder-slate-400 focus:border-[#0d3393] focus:bg-white focus:outline-none transition-colors shadow-2xs"
+              placeholder="Pregunta a Gerencia... (ej. ¿Cómo están las ventas este mes?)"
+              class="w-full rounded-2xl border border-slate-300/80 bg-slate-50/80 backdrop-blur-xs pl-11 pr-4 py-3.5 text-sm font-medium text-slate-900 placeholder-slate-400 focus:border-[#0d3393] focus:bg-white focus:outline-none transition-colors shadow-2xs"
             />
-            <i class="fa-solid fa-sparkles text-[#0d3393] absolute left-3.5 top-1/2 -translate-y-1/2 text-xs"></i>
+            <i class="fa-solid fa-sparkles text-[#0d3393] absolute left-4 top-1/2 -translate-y-1/2 text-sm"></i>
           </div>
 
           <button
             type="submit"
             [disabled]="!queryInput.trim() || isBusy()"
-            class="rounded-2xl bg-[#0d3393] hover:bg-[#0b2670] disabled:opacity-50 text-white px-5 py-2.5 text-xs font-extrabold transition-all shadow-md hover:shadow-lg flex items-center gap-2 shrink-0"
+            class="rounded-2xl bg-[#0d3393] hover:bg-[#0b2670] disabled:opacity-50 text-white px-6 py-3.5 text-sm font-extrabold transition-all shadow-md hover:shadow-lg flex items-center gap-2 shrink-0"
           >
             <span>Consultar</span>
-            <i class="fa-solid fa-paper-plane text-xs"></i>
+            <i class="fa-solid fa-paper-plane text-sm"></i>
           </button>
         </form>
       </div>

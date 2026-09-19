@@ -43,6 +43,26 @@ import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
+          @if (chatService.activeAnalysis()) {
+            <button
+              type="button"
+              (click)="chatService.clearHistory()"
+              class="rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-600 px-4 py-2 text-xs font-bold transition-all shadow-2xs flex items-center gap-2"
+              title="Limpiar la respuesta actual"
+            >
+              <i class="fa-solid fa-broom"></i>
+              <span>Limpiar</span>
+            </button>
+          }
+          <button
+            type="button"
+            (click)="chatService.nuevoChat()"
+            class="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2 text-xs font-bold transition-all shadow-2xs flex items-center gap-2"
+            title="Empezar una conversación nueva (borra también el historial de preguntas)"
+          >
+            <i class="fa-solid fa-plus text-[#0d3393]"></i>
+            <span>Nuevo Chat</span>
+          </button>
           <button
             type="button"
             (click)="chatService.resetToDashboard()"
@@ -54,8 +74,23 @@ import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
         </div>
       </div>
 
+      <!-- Estado vacío: sin pregunta activa ni una en curso (recién entrando, o después de "Limpiar"/"Nuevo Chat") -->
+      @if (chatService.processingStage() === 'idle' && !chatService.activeAnalysis()) {
+        <div class="rounded-2xl bg-white p-10 border border-slate-200 shadow-xs text-center space-y-3">
+          <div class="flex justify-center">
+            <div class="h-12 w-12 rounded-2xl bg-[#0d3393] text-white flex items-center justify-center text-xl shadow-md">
+              <i class="fa-solid fa-paint-roller"></i>
+            </div>
+          </div>
+          <h3 class="text-base font-extrabold text-slate-900">Haz una pregunta para empezar</h3>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto">
+            Usa la barra de abajo o una de las consultas frecuentes para consultar ventas, clientes o productos reales del Data Warehouse.
+          </p>
+        </div>
+      }
+
       <!-- Processing Status Banner (If loading) -->
-      @if (chatService.processingStage() !== 'completed') {
+      @if (chatService.processingStage() !== 'idle' && chatService.processingStage() !== 'completed') {
         <div class="rounded-2xl bg-white p-8 border border-slate-200 shadow-xs text-center space-y-4">
           <div class="flex justify-center">
             <div class="h-12 w-12 rounded-2xl bg-[#0d3393] text-white flex items-center justify-center text-xl shadow-md">

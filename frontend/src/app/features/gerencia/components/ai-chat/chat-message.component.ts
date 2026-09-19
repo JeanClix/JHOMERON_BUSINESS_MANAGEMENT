@@ -30,8 +30,14 @@ import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
           <span>{{ message().timestamp }}</span>
         </div>
 
-        <!-- Content formatted -->
-        <div class="leading-relaxed font-sans prose prose-sm prose-slate max-w-none prose-table:text-xs prose-th:bg-slate-50" [innerHTML]="message().content | markdown"></div>
+        <!-- Content formatted -- prose-invert en el mensaje del usuario: es
+             texto blanco sobre fondo azul, prose-slate (gris oscuro) ahí lo
+             deja casi invisible. -->
+        <div
+          [class]="'leading-relaxed font-sans prose prose-sm max-w-none prose-table:text-xs ' +
+            (message().sender === 'user' ? 'prose-invert' : 'prose-slate prose-th:bg-slate-50')"
+          [innerHTML]="message().content | markdown"
+        ></div>
 
         <!-- Key Data Points Badges -->
         @if (message().keyDataPoints?.length) {

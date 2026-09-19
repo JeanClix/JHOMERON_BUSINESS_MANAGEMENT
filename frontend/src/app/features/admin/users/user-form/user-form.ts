@@ -58,8 +58,6 @@ export class UserForm implements OnInit {
     zona: ['LIMA'],
     activo: [true],
     description: [''],
-    metaMensual: [''],
-    metaSemanal: [''],
     // Debe copiarse EXACTO desde dwh.dim_vendedor.empleado_venta -- ver
     // deuda técnica en backend/reporting/README.md. Un typo rompe el join
     // silenciosamente (el vendedor ve "0 ventas", no un error).
@@ -83,8 +81,6 @@ export class UserForm implements OnInit {
             role: user.role,
             activo: user.activo,
             description: user.description || '',
-            metaMensual: user.metaMensual != null ? String(user.metaMensual) : '',
-            metaSemanal: user.metaSemanal != null ? String(user.metaSemanal) : '',
             vendedorNombreSap: user.vendedorNombreSap || ''
           });
           this.esVendedor.set(user.role === 'VENDEDOR');
@@ -121,16 +117,12 @@ export class UserForm implements OnInit {
       username: valores.username!,
       name: valores.name!,
       role: valores.role! as any,
-      location: this.construirLocation(),
+      // Zona de venta solo aplica a VENDEDOR -- gerencia/admin ven toda la
+      // empresa, no tiene sentido asignarles "Lima" por defecto.
+      location: esVendedor ? this.construirLocation() : undefined,
       description: valores.description || undefined,
       ...(this.editId() ? { activo: valores.activo ?? true } : {}),
-      ...(esVendedor
-        ? {
-            metaMensual: valores.metaMensual || undefined,
-            metaSemanal: valores.metaSemanal || undefined,
-            vendedorNombreSap: valores.vendedorNombreSap?.trim() || undefined
-          }
-        : {}),
+      ...(esVendedor ? { vendedorNombreSap: valores.vendedorNombreSap?.trim() || undefined } : {}),
       ...(valores.password ? { password: valores.password } : {})
     };
 

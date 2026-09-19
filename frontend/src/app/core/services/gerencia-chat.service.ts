@@ -1,8 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { firstValueFrom, Observable, of } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { firstValueFrom, from, Observable } from 'rxjs';
 import { AI_SERVICE_BASE_URL } from '../config/ai-service.config';
 import { AiChatApiResponse } from '../models/ai-service.model';
 import { AiAnalysisResponse, ProcessingStage, ChatMessage, ChatPresetPrompt } from '../models/chat.model';
@@ -74,18 +73,25 @@ export class GerenciaChatService {
     }
   ];
 
-  // Initial Chat History
-  private readonly messagesSignal = signal<ChatMessage[]>([
-    {
-      id: 'msg-welcome',
-      sender: 'assistant',
-      content: `¡Hola! Soy el **Asistente de IA para Gerencia** 🤖.
-Puedo responder preguntas reales sobre las ventas, clientes y productos de toda la empresa, consultando directamente el Data Warehouse. También puedo explicarte cualquier tarjeta del dashboard -- usa el botón de "explicar" que aparece en cada una.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+  private readonly TEXTO_BIENVENIDA =
+    `¡Hola! Soy el **Asistente de IA para Gerencia** 🤖.\n` +
+    `Puedo responder preguntas reales sobre las ventas, clientes y productos de toda la empresa, consultando directamente el Data Warehouse. También puedo explicarte cualquier tarjeta del dashboard -- usa el botón de "explicar" que aparece en cada una.`;
 
+  private mensajeBienvenida(): ChatMessage {
+    return {
+      id: `msg-welcome-${Date.now()}`,
+      sender: 'assistant',
+      content: this.TEXTO_BIENVENIDA,
+      timestamp: this.now()
+    };
+  }
+
+  // Chat de mensajes (vista /gerencia/chat, ver AiChatComponent) -- arranca
+  // con el saludo, y clearHistory()/nuevoChat() vuelven acá (no lo dejan en
+  // blanco, ver comentario de esos métodos más abajo).
+  private readonly messagesSignal = signal<ChatMessage[]>([this.mensajeBienvenida()]);
   public readonly messages = this.messagesSignal.asReadonly();
+  public readonly isChatLoading = signal<boolean>(false);
 
   constructor(private router: Router) {}
 
@@ -179,34 +185,63 @@ Puedo responder preguntas reales sobre las ventas, clientes y productos de toda 
     this.router.navigate(['/gerencia/dashboard']);
   }
 
-  /** Chat de mensajes (para la vista de chat de página completa, /gerencia/chat). */
+  /**
+   * Chat de mensajes de página completa (/gerencia/chat, ver AiChatComponent)
+   * -- a diferencia de submitQuery() (que resuelve UNA pregunta a la vez y
+   * navega a /gerencia/analisis), este método mantiene una conversación real
+   * en `messages()`: agrega la pregunta, llama al AI Service directamente, y
+   * agrega la respuesta real (o el error) a la misma lista. No navega a
+   * ningún lado.
+   */
   sendMessage(userQuery: string): Observable<ChatMessage> {
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const trimmed = userQuery.trim();
     const userMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
       sender: 'user',
-      content: userQuery,
-      timestamp: timeStr
+      content: trimmed,
+      timestamp: this.now()
     };
     this.messagesSignal.update(msgs => [...msgs, userMsg]);
-    this.submitQuery(userQuery);
+    this.isChatLoading.set(true);
 
-    const responseMsg: ChatMessage = {
-      id: `ai-${Date.now()}`,
-      sender: 'assistant',
-      content: `Análisis en camino para: **"${userQuery}"** -- revisa la vista de Análisis.`,
-      timestamp: timeStr
-    };
-    return of(responseMsg).pipe(delay(300));
+    const promise = (async (): Promise<ChatMessage> => {
+      let aiMsg: ChatMessage;
+      try {
+        const respuesta = await firstValueFrom(
+          this.http.post<AiChatApiResponse>(
+            `${AI_SERVICE_BASE_URL}/chat`,
+            { pregunta: this.buildPreguntaConContexto(trimmed) },
+            { headers: this.authHeaders() }
+          )
+        );
+        aiMsg = { id: `ai-${Date.now()}`, sender: 'assistant', content: respuesta.respuesta, timestamp: this.now() };
+      } catch (err) {
+        aiMsg = { id: `err-${Date.now()}`, sender: 'assistant', content: this.mensajeError(err), timestamp: this.now() };
+      }
+      this.messagesSignal.update(msgs => [...msgs, aiMsg]);
+      this.isChatLoading.set(false);
+      return aiMsg;
+    })();
+
+    return from(promise);
   }
 
+  /** Limpia la respuesta actual de /gerencia/analisis y reinicia la
+   * conversación de /gerencia/chat al saludo inicial (nunca la deja en
+   * blanco) -- conserva el historial de preguntas hechas en la sesión (los
+   * chips), para eso está `nuevoChat()`, que además borra ese historial. */
   clearHistory(): void {
-    this.queryHistory.set([
-      '¿Cómo están las ventas este mes?',
-      '¿Cuáles son los productos más vendidos?',
-      'Compara las ventas de este mes con el anterior',
-      'Explícame el comportamiento de las ventas'
-    ]);
+    this.processingStage.set('idle');
+    this.processingMessage.set('');
+    this.activeAnalysis.set(null);
+    this.messagesSignal.set([this.mensajeBienvenida()]);
+  }
+
+  /** Reinicio completo: limpia la respuesta actual Y el historial de
+   * preguntas de la sesión (los chips de "consultas recientes"). */
+  nuevoChat(): void {
+    this.clearHistory();
+    this.queryHistory.set([]);
   }
 
   private buildPreguntaConContexto(pregunta: string): string {
