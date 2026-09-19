@@ -9,9 +9,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
   area VARCHAR(100),
   ubicacion VARCHAR(255),
   rol VARCHAR(50) NOT NULL, -- 'ADMIN', 'GERENCIA', 'VENDEDOR'
-  -- Meta de venta mensual (S/), solo aplica a rol VENDEDOR. Base del "tachito
-  -- de pintura" de cumplimiento de cuota en el dashboard del vendedor.
+  -- Meta de venta mensual y semanal (S/), solo aplica a rol VENDEDOR. Base
+  -- del "tachito de pintura" de cumplimiento de cuota en el dashboard del
+  -- vendedor -- son dos campos independientes (no se deriva la semanal
+  -- dividiendo la mensual entre 4), aunque hoy coincidan (20000 x 4 = 80000).
   meta_mensual NUMERIC(14, 2),
+  meta_semanal NUMERIC(14, 2),
   -- DEUDA TECNICA TEMPORAL (ver TODO / Fase 2): dwh.dim_vendedor solo tiene
   -- el nombre libre que llega de SAP (OSLP.SlpName), sin un codigo estable
   -- (SlpCode) todavia extraido por el batch. Mientras eso no se agregue al

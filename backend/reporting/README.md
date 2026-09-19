@@ -69,7 +69,10 @@ otro.
 ## Endpoints (Fase 1)
 
 ### Vendedores (requiere JWT con `role=VENDEDOR`)
-- `GET /vendedores/me/cuota?anio&mes` — % de cumplimiento de meta mensual.
+- `GET /vendedores/me/cuota?modo=mes|semana&anio&mes&anio_iso&semana_iso` — %
+  de cumplimiento. `modo=mes` (default) compara contra `meta_mensual`;
+  `modo=semana` contra `meta_semanal` -- son dos metas independientes
+  configuradas en el panel admin (no se deriva una de la otra).
 - `GET /vendedores/me/ventas?modo=mes|semana&anio&mes&anio_iso&semana_iso` —
   ventas dia a dia. `modo=mes` (default) devuelve el mes calendario
   indicado; `modo=semana` devuelve una semana ISO (lunes-domingo). Base del

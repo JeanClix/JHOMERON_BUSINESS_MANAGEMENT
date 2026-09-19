@@ -42,6 +42,13 @@ public class User {
     @Column(name = "meta_mensual", precision = 14, scale = 2)
     private BigDecimal metaMensual; // Solo aplica a rol VENDEDOR
 
+    // Meta semanal: campo independiente, no derivado de metaMensual/4 -- el
+    // mes no siempre tiene 4 semanas exactas, y gerencia puede fijar un
+    // numero que no sea la simple division (ver discusion: hoy coincide,
+    // 20000semana * 4 = 80000mes, pero no se asume esa relacion en el codigo).
+    @Column(name = "meta_semanal", precision = 14, scale = 2)
+    private BigDecimal metaSemanal; // Solo aplica a rol VENDEDOR
+
     // DEUDA TECNICA TEMPORAL: unico join posible hoy entre este usuario y sus
     // ventas en dwh.fact_ventas (via dwh.dim_vendedor.empleado_venta), hasta
     // que el batch extraiga un codigo de vendedor estable (SlpCode) de SAP.

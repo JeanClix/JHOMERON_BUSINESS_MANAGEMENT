@@ -109,14 +109,15 @@ public class UserController {
         m.put("location", user.getLocation());
         m.put("role", user.getRole());
         m.put("metaMensual", user.getMetaMensual());
+        m.put("metaSemanal", user.getMetaSemanal());
         m.put("vendedorNombreSap", user.getVendedorNombreSap());
         return m;
     }
 
     /**
-     * Campos que solo tienen sentido para rol VENDEDOR. metaMensual llega
-     * como string desde el body (Map<String,String>, igual que el resto de
-     * este controller) y se parsea a BigDecimal a mano.
+     * Campos que solo tienen sentido para rol VENDEDOR. metaMensual/metaSemanal
+     * llegan como string desde el body (Map<String,String>, igual que el
+     * resto de este controller) y se parsean a BigDecimal a mano.
      *
      * vendedorNombreSap es deuda tecnica temporal (ver User.java): debe
      * copiarse EXACTO desde dwh.dim_vendedor.empleado_venta -- quien crea el
@@ -127,6 +128,10 @@ public class UserController {
         if (body.containsKey("metaMensual")) {
             String raw = body.get("metaMensual");
             user.setMetaMensual(raw == null || raw.isBlank() ? null : new BigDecimal(raw));
+        }
+        if (body.containsKey("metaSemanal")) {
+            String raw = body.get("metaSemanal");
+            user.setMetaSemanal(raw == null || raw.isBlank() ? null : new BigDecimal(raw));
         }
         if (body.containsKey("vendedorNombreSap")) {
             String raw = body.get("vendedorNombreSap");

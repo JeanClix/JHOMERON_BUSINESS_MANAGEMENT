@@ -93,11 +93,12 @@ SELECT
     id AS usuario_id,
     nombre,
     vendedor_nombre_sap,
-    meta_mensual
+    meta_mensual,
+    meta_semanal
 FROM usuarios
 WHERE rol = 'VENDEDOR';
 
-COMMENT ON VIEW bi.v_vendedores IS 'Vendedores creados desde el panel admin con su meta mensual y el nombre SAP para vincular con dwh.dim_vendedor. No expone password ni otras columnas de usuarios.';
+COMMENT ON VIEW bi.v_vendedores IS 'Vendedores creados desde el panel admin con su meta mensual/semanal y el nombre SAP para vincular con dwh.dim_vendedor. No expone password ni otras columnas de usuarios.';
 
 -- ============================================================
 -- 2. Clientes (reactivacion, top compradores)
@@ -192,6 +193,25 @@ GROUP BY v.empleado_venta, c.cliente_id, c.razon_social, c.departamento, t.anio,
 
 COMMENT ON VIEW bi.v_cliente_productos_mes_vendedor IS 'Como bi.v_cliente_productos_mes pero acotada a un vendedor especifico, mismo criterio que bi.v_cliente_frecuencia_vendedor.';
 
+-- Ventas por producto y mes, a nivel de toda la empresa (sin distincion de
+-- vendedor) -- para el "Top Productos por Facturacion" del dashboard de
+-- gerencia (bi.v_vendedor_producto_mes es el equivalente acotado a un
+-- vendedor, usado en el dashboard de Vendedores).
+CREATE OR REPLACE VIEW bi.v_producto_mes AS
+SELECT
+    p.numero_articulo      AS codigo_producto,
+    p.descripcion_articulo AS producto,
+    t.anio,
+    t.mes,
+    SUM(f.total_venta_mn)  AS total_soles,
+    SUM(f.cantidad)        AS cantidad
+FROM dwh.fact_ventas f
+JOIN dwh.dim_tiempo t   ON f.fecha_id = t.fecha_id
+JOIN dwh.dim_producto p ON f.producto_id = p.producto_id
+GROUP BY p.numero_articulo, p.descripcion_articulo, t.anio, t.mes;
+
+COMMENT ON VIEW bi.v_producto_mes IS 'Ventas por producto y mes a nivel empresa. Top Productos por Facturacion del dashboard de gerencia.';
+
 -- ============================================================
 -- 3. Gerencia (mapa, tendencia)
 -- ============================================================
@@ -234,7 +254,8 @@ GRANT SELECT ON
     bi.v_cliente_frecuencia_vendedor,
     bi.v_cliente_productos_mes,
     bi.v_cliente_productos_mes_vendedor,
-    bi.v_ventas_departamento_mes
+    bi.v_ventas_departamento_mes,
+    bi.v_producto_mes
 TO bi_readonly;
 
 -- Nota: bi_readonly NO tiene ningun permiso sobre dwh.*/staging.* ni sobre

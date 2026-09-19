@@ -3,6 +3,8 @@
 FASE 1 (esta semana) -- lo que NO depende de datos que el batch todavia no
 extrae:
   - top clientes por productos distintos
+  - top productos por facturacion (empresa completa)
+  - ticket promedio por cliente
   - tendencia general de ventas
   - mapa de Peru por departamento (monto, sin cruce de linea)
 
@@ -50,6 +52,60 @@ def top_clientes(
         ).fetchall()
 
     return {"anio": anio, "mes": mes, "clientes": filas}
+
+
+@router.get("/top-productos")
+def top_productos(
+    anio: int = Query(default_factory=lambda: date.today().year),
+    mes: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    orden: str = Query(default="desc", pattern="^(asc|desc)$"),
+    limite: int = Query(default=10, le=50),
+    _claims: dict = Depends(require_gerencia),
+):
+    """Top Productos por Facturacion, a nivel de toda la empresa (sin
+    distincion de vendedor) -- ver bi.v_producto_mes."""
+    direccion = "ASC" if orden == "asc" else "DESC"
+    with get_connection() as conn:
+        filas = conn.execute(
+            f"""
+            SELECT codigo_producto, producto, total_soles, cantidad
+            FROM bi.v_producto_mes
+            WHERE anio = %s AND mes = %s
+            ORDER BY total_soles {direccion}
+            LIMIT %s
+            """,
+            (anio, mes, limite),
+        ).fetchall()
+
+    return {"anio": anio, "mes": mes, "orden": orden, "productos": filas}
+
+
+@router.get("/ticket-promedio")
+def ticket_promedio(
+    anio: int = Query(default_factory=lambda: date.today().year),
+    mes: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    _claims: dict = Depends(require_gerencia),
+):
+    """Ticket promedio por cliente en el mes: AVG(total_soles) agrupado por
+    cliente (no por factura -- fact_ventas no tiene un ID de factura
+    confiable, ver comentario en dwh.fact_ventas.linea). Reusa
+    bi.v_cliente_productos_mes en vez de crear una vista nueva."""
+    with get_connection() as conn:
+        fila = conn.execute(
+            """
+            SELECT AVG(total_soles) AS ticket_promedio, COUNT(*) AS clientes_activos
+            FROM bi.v_cliente_productos_mes
+            WHERE anio = %s AND mes = %s
+            """,
+            (anio, mes),
+        ).fetchone()
+
+    return {
+        "anio": anio,
+        "mes": mes,
+        "ticket_promedio": fila["ticket_promedio"] if fila else None,
+        "clientes_activos": fila["clientes_activos"] if fila else 0,
+    }
 
 
 @router.get("/tendencia-ventas")

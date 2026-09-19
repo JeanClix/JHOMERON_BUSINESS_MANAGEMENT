@@ -46,6 +46,7 @@ public class AuthController {
             body.put("location", user.getLocation());
             body.put("role", user.getRole());
             body.put("metaMensual", user.getMetaMensual());
+            body.put("metaSemanal", user.getMetaSemanal());
             // Token de sesion: lo valida reporting (y a futuro ai/ml) para
             // saber quien pregunta sin volver a llamar a admin. El frontend
             // debe mandarlo como "Authorization: Bearer <token>" en cada

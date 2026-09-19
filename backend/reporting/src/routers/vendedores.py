@@ -16,47 +16,81 @@ from ..db import get_connection
 router = APIRouter(prefix="/vendedores/me", tags=["vendedores"])
 
 
+def _rango_fechas(
+    modo: str, anio: int, mes: int, anio_iso: int, semana_iso: int
+) -> tuple[date, date]:
+    """Rango [desde, hasta] segun el modo del filtro -- compartido entre
+    /cuota y /ventas para que ambos usen exactamente el mismo criterio de
+    "que es la semana/mes actual" (ver ventas.component.ts en el frontend,
+    que hace el mismo calculo del lado del cliente para no pedir de mas)."""
+    if modo == "semana":
+        desde = date.fromisocalendar(anio_iso, semana_iso, 1)
+        hasta = desde + timedelta(days=6)
+    else:
+        ultimo_dia = calendar.monthrange(anio, mes)[1]
+        desde = date(anio, mes, 1)
+        hasta = date(anio, mes, ultimo_dia)
+    return desde, hasta
+
+
 @router.get("/cuota")
 def cuota(
+    modo: str = Query(default="mes", pattern="^(mes|semana)$"),
     anio: int = Query(default_factory=lambda: date.today().year),
     mes: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    anio_iso: int = Query(default_factory=lambda: date.today().isocalendar()[0]),
+    semana_iso: int = Query(default_factory=lambda: date.today().isocalendar()[1], ge=1, le=53),
     vendedor: str = Depends(require_vendedor),
 ):
-    """% de cumplimiento de la meta mensual (para el "tachito de pintura").
+    """% de cumplimiento de la meta (para el "tachito de pintura").
 
-    Si el vendedor no tiene meta_mensual configurada en el panel admin, se
-    devuelve meta_mensual=None y porcentaje_cumplimiento=None -- el frontend
-    debe mostrar "sin meta configurada", nunca un 0% (seria enganoso: no es
-    que no vendio nada, es que no hay con que comparar).
+    `modo=mes` (default) compara contra meta_mensual en el mes indicado;
+    `modo=semana` compara contra meta_semanal en la semana ISO indicada --
+    son dos metas INDEPENDIENTES configuradas en el panel admin, no una
+    derivada de la otra (ver User.java: meta_semanal no es meta_mensual/4).
+
+    Si la meta que aplica no esta configurada, se devuelve
+    porcentaje_cumplimiento=None -- el frontend debe mostrar "sin meta
+    configurada", nunca un 0% (seria enganoso: no es que no vendio nada, es
+    que no hay con que comparar).
     """
+    desde, hasta = _rango_fechas(modo, anio, mes, anio_iso, semana_iso)
+
     with get_connection() as conn:
         meta_row = conn.execute(
-            "SELECT meta_mensual FROM bi.v_vendedores WHERE vendedor_nombre_sap = %s",
+            "SELECT meta_mensual, meta_semanal FROM bi.v_vendedores WHERE vendedor_nombre_sap = %s",
             (vendedor,),
         ).fetchone()
-        meta = meta_row["meta_mensual"] if meta_row else None
+        meta_mensual = meta_row["meta_mensual"] if meta_row else None
+        meta_semanal = meta_row["meta_semanal"] if meta_row else None
+        meta_aplicada = meta_semanal if modo == "semana" else meta_mensual
 
         venta_row = conn.execute(
             """
             SELECT COALESCE(SUM(total_soles), 0) AS total_soles
             FROM bi.v_ventas_vendedor_dia
-            WHERE vendedor = %s AND anio = %s AND mes = %s
+            WHERE vendedor = %s AND fecha BETWEEN %s AND %s
             """,
-            (vendedor, anio, mes),
+            (vendedor, desde, hasta),
         ).fetchone()
         total_vendido = venta_row["total_soles"] or Decimal("0")
 
     porcentaje = None
-    if meta and meta > 0:
+    if meta_aplicada and meta_aplicada > 0:
         # Sin tope en 100: el frontend decide si "llena el tacho" hasta 100%
         # y muestra el excedente aparte, o lo deja pasar de 100 visualmente.
-        porcentaje = round(float(total_vendido) / float(meta) * 100, 1)
+        porcentaje = round(float(total_vendido) / float(meta_aplicada) * 100, 1)
 
     return {
         "vendedor": vendedor,
+        "modo": modo,
         "anio": anio,
         "mes": mes,
-        "meta_mensual": meta,
+        "anio_iso": anio_iso,
+        "semana_iso": semana_iso,
+        "meta_mensual": meta_mensual,
+        "meta_semanal": meta_semanal,
+        "meta_aplicada": meta_aplicada,
         "total_vendido": total_vendido,
         "porcentaje_cumplimiento": porcentaje,
     }
@@ -77,13 +111,7 @@ def ventas(
     (`modo=semana`, corte lunes-domingo inequivoco sin importar en que mes
     cae cada dia).
     """
-    if modo == "semana":
-        desde = date.fromisocalendar(anio_iso, semana_iso, 1)
-        hasta = desde + timedelta(days=6)
-    else:
-        ultimo_dia = calendar.monthrange(anio, mes)[1]
-        desde = date(anio, mes, 1)
-        hasta = date(anio, mes, ultimo_dia)
+    desde, hasta = _rango_fechas(modo, anio, mes, anio_iso, semana_iso)
 
     with get_connection() as conn:
         filas = conn.execute(

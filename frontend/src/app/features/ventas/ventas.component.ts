@@ -130,6 +130,12 @@ export class VentasComponent {
     return '#ef0606'; // rojo de marca: alerta, muy por debajo
   });
 
+  // meta_mensual y meta_semanal son campos independientes (ver
+  // backend/admin/.../User.java) -- este texto/valor sigue al modo activo
+  // del filtro, igual que el resto del reporte.
+  protected readonly etiquetaMeta = computed(() => (this.periodoModo() === 'semana' ? 'semanal' : 'mensual'));
+  protected readonly metaAplicada = computed(() => this.cuota()?.meta_aplicada ?? null);
+
   protected readonly periodoLabel = computed(() => {
     if (this.periodoModo() === 'semana') {
       const lunes = this.filtroSemanaLunes();
@@ -182,12 +188,16 @@ export class VentasComponent {
   protected setPeriodoModo(modo: PeriodoModo) {
     if (this.periodoModo() === modo) return;
     this.periodoModo.set(modo);
+    // La cuota tambien depende del modo (meta_mensual vs. meta_semanal, ver
+    // backend/reporting: /vendedores/me/cuota?modo=...), no solo el grafico.
+    this.cargarCuota();
     this.cargarVentas();
   }
 
   protected periodoAnterior() {
     if (this.periodoModo() === 'semana') {
       this.moverSemana(-1);
+      this.cargarCuota();
       this.cargarVentas();
     } else {
       this.moverMes(-1);
@@ -200,6 +210,7 @@ export class VentasComponent {
   protected periodoSiguiente() {
     if (this.periodoModo() === 'semana') {
       this.moverSemana(1);
+      this.cargarCuota();
       this.cargarVentas();
     } else {
       this.moverMes(1);
@@ -257,7 +268,14 @@ export class VentasComponent {
 
   private async cargarCuota() {
     try {
-      const cuota = await this.reportingService.getCuota(this.filtroAnio(), this.filtroMes());
+      const isoSemana = this.isoDeFecha(this.filtroSemanaLunes());
+      const cuota = await this.reportingService.getCuota({
+        modo: this.periodoModo(),
+        anio: this.filtroAnio(),
+        mes: this.filtroMes(),
+        anioIso: isoSemana.anio,
+        semanaIso: isoSemana.semana
+      });
       this.cuota.set(cuota);
       this.errorReporte.set(null);
     } catch (err) {

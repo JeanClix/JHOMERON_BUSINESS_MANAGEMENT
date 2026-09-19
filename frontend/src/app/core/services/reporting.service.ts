@@ -6,20 +6,26 @@ import { AuthService } from './auth.service';
 import {
   ClientesInactivosResponse,
   CuotaVendedor,
+  MapaDepartamentosResponse,
   PeriodoModo,
   ProductosVendedorResponse,
+  TendenciaVentasResponse,
+  TicketPromedioResponse,
+  TopClientesGerenciaResponse,
+  TopProductosGerenciaResponse,
   VentasPeriodoResponse
 } from '../models/reporting.model';
 
 /**
- * Cliente HTTP hacia backend/reporting (endpoints /vendedores/me/*).
+ * Cliente HTTP hacia backend/reporting (endpoints /vendedores/me/* y
+ * /gerencia/*).
  *
  * Cada request manda el JWT del usuario logueado como
- * "Authorization: Bearer <token>" -- reporting deriva el vendedor del
+ * "Authorization: Bearer <token>" -- reporting deriva el vendedor/rol del
  * token, nunca de un parámetro que mande este servicio (ver
- * backend/reporting/src/auth.py). Si no hay token (no logueado, o el
- * usuario no es VENDEDOR), reporting responde 401/403/409 y se propaga
- * como error del Observable/Promise.
+ * backend/reporting/src/auth.py). Si no hay token, o el rol no alcanza
+ * (VENDEDOR pidiendo /gerencia/*, o viceversa), reporting responde
+ * 401/403/409 y se propaga como error del Observable/Promise.
  */
 @Injectable({
   providedIn: 'root'
@@ -33,8 +39,19 @@ export class ReportingService {
     return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }
 
-  getCuota(anio: number, mes: number): Promise<CuotaVendedor> {
-    const params = new HttpParams().set('anio', anio).set('mes', mes);
+  getCuota(opts: {
+    modo: PeriodoModo;
+    anio: number;
+    mes: number;
+    anioIso: number;
+    semanaIso: number;
+  }): Promise<CuotaVendedor> {
+    const params = new HttpParams()
+      .set('modo', opts.modo)
+      .set('anio', opts.anio)
+      .set('mes', opts.mes)
+      .set('anio_iso', opts.anioIso)
+      .set('semana_iso', opts.semanaIso);
     return firstValueFrom(
       this.http.get<CuotaVendedor>(`${REPORTING_SERVICE_BASE_URL}/vendedores/me/cuota`, {
         params,
@@ -87,6 +104,66 @@ export class ReportingService {
     const params = new HttpParams().set('dias_umbral', diasUmbral).set('limite', limite);
     return firstValueFrom(
       this.http.get<ClientesInactivosResponse>(`${REPORTING_SERVICE_BASE_URL}/vendedores/me/clientes-inactivos`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  // ----- /gerencia/* (requiere role GERENCIA o ADMIN) -----
+
+  getTopClientesGerencia(anio: number, mes: number, limite = 15): Promise<TopClientesGerenciaResponse> {
+    const params = new HttpParams().set('anio', anio).set('mes', mes).set('limite', limite);
+    return firstValueFrom(
+      this.http.get<TopClientesGerenciaResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/top-clientes`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getTopProductosGerencia(
+    anio: number,
+    mes: number,
+    orden: 'asc' | 'desc' = 'desc',
+    limite = 10
+  ): Promise<TopProductosGerenciaResponse> {
+    const params = new HttpParams().set('anio', anio).set('mes', mes).set('orden', orden).set('limite', limite);
+    return firstValueFrom(
+      this.http.get<TopProductosGerenciaResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/top-productos`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getTicketPromedio(anio: number, mes: number): Promise<TicketPromedioResponse> {
+    const params = new HttpParams().set('anio', anio).set('mes', mes);
+    return firstValueFrom(
+      this.http.get<TicketPromedioResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/ticket-promedio`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getTendenciaVentas(anio: number): Promise<TendenciaVentasResponse> {
+    const params = new HttpParams().set('anio', anio);
+    return firstValueFrom(
+      this.http.get<TendenciaVentasResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/tendencia-ventas`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getMapaDepartamentos(anio: number, mes?: number): Promise<MapaDepartamentosResponse> {
+    let params = new HttpParams().set('anio', anio);
+    if (mes !== undefined) {
+      params = params.set('mes', mes);
+    }
+    return firstValueFrom(
+      this.http.get<MapaDepartamentosResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/mapa-departamentos`, {
         params,
         headers: this.authHeaders()
       })
