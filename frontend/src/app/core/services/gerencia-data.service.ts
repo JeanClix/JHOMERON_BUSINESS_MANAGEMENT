@@ -1,14 +1,32 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { AI_SERVICE_BASE_URL } from '../config/ai-service.config';
 import { KpiMetric } from '../models/kpi.model';
 import { BusinessChartData } from '../models/chart.model';
 import { BusinessDocument } from '../models/document.model';
-import { InsightCard } from '../models/insight.model';
+import { InsightCard, InsightMensualApi } from '../models/insight.model';
+import { AuthService } from './auth.service';
+
+const _CATEGORY_LABELS: Record<string, string> = {
+  ventas: 'Ventas',
+  marina: 'Línea Marina',
+  rentabilidad: 'Rentabilidad'
+};
+
+const _IMPACT_COLORS: Record<string, string> = {
+  alto: 'bg-[#0d3393] text-white',
+  oportunidad: 'bg-emerald-600 text-white',
+  alerta: 'bg-amber-600 text-white'
+};
 
 @Injectable({
   providedIn: 'root'
 })
 export class GerenciaDataService {
+  private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
 
   // Mock KPIs Executive Summary
   private readonly kpisData: KpiMetric[] = [
@@ -328,52 +346,6 @@ Cada balde o galón debe llevar estampado el número de lote (Ej. **L-20260811-0
     }
   ];
 
-  // Mock Executive Insights
-  private readonly insightsData: InsightCard[] = [
-    {
-      id: 'ins-marina-growth',
-      title: 'Oportunidad de Expansión en Sector Astilleros Paita y Chimbote',
-      category: 'marina',
-      categoryLabel: 'Línea Marina',
-      impactLevel: 'alto',
-      impactBadgeColor: 'bg-[#0d3393] text-white',
-      summary: 'La demanda de Primer Epóxico Marino y Antifouling ha crecido un 22.4% este mes.',
-      description: 'Los astilleros de Paita están incrementando el mantenimiento preventivo antes de la temporada de pesca de pota. Se recomienda aumentar el stock consignado en distribuidoras del Norte.',
-      keyMetric: '+22.4% incremento en volumen',
-      recommendation: 'Aprobar un lote prioritario de 500 galones de Primer Epóxico 2K para el almacén del Norte.',
-      date: '10 de Agosto, 2026',
-      actionPrompt: '¿Qué acciones estratégicas debemos tomar para aprovisionar a los astilleros de Paita?'
-    },
-    {
-      id: 'ins-margin-opt',
-      title: 'Optimización del Margen Operativo por Compra Directa de Resinas',
-      category: 'rentabilidad',
-      categoryLabel: 'Rentabilidad',
-      impactLevel: 'oportunidad',
-      impactBadgeColor: 'bg-emerald-600 text-white',
-      summary: 'El margen bruto marino se mantiene en 42.1% gracias a la compra de resinas epóxicas por contenedor.',
-      description: 'La consolidación de insumos internacionales ha generado un ahorro del 6.2% en el costo por galón producido.',
-      keyMetric: '38.4% Margen Bruto General',
-      recommendation: 'Evaluar acuerdo anual de volumen con el proveedor de curadores poliamídicos.',
-      date: '08 de Agosto, 2026',
-      actionPrompt: 'Explícame el impacto de la compra directa de resinas en el margen operativo.'
-    },
-    {
-      id: 'ins-alquidico-alert',
-      title: 'Alerta de Rentabilidad en Acabados Alquídicos Convencionales',
-      category: 'marcos-operativos',
-      categoryLabel: 'Operaciones',
-      impactLevel: 'alerta',
-      impactBadgeColor: 'bg-amber-600 text-white',
-      summary: 'El costo del pigmento dióxido de titanio subió un 4.5%, reduciendo el margen de esmaltes alquídicos.',
-      description: 'El margen de la línea alquídica cayó al 31.5%. Se sugiere reajustar la lista de precios a distribuidores minoristas en un 3% a partir de Setiembre.',
-      keyMetric: '31.5% Margen Alquídico (-2.1%)',
-      recommendation: 'Promover la migración de clientes hacia esquemas epóxicos de mayor valor agregado.',
-      date: '05 de Agosto, 2026',
-      actionPrompt: '¿Qué alternativas tenemos para recuperar el margen en acabados alquídicos?'
-    }
-  ];
-
   // Signals for state
   public readonly selectedDocument = signal<BusinessDocument>(this.documentsData[0]);
 
@@ -407,7 +379,46 @@ Cada balde o galón debe llevar estampado el número de lote (Ej. **L-20260811-0
     return of(doc);
   }
 
+  /**
+   * Oportunidades de mejora reales del AI Service (backend/intelligence/ai,
+   * ai.insight_mensual) -- se generan una vez por período (scheduler mensual
+   * o botón "Actualizar ahora"), este método solo LEE lo ya persistido, no
+   * dispara ninguna llamada al LLM.
+   */
   getExecutiveInsights(): Observable<InsightCard[]> {
-    return of(this.insightsData);
+    return this.http
+      .get<{ insights: InsightMensualApi[] }>(`${AI_SERVICE_BASE_URL}/insights/actual`, { headers: this.authHeaders() })
+      .pipe(map((res) => res.insights.map((r) => this.mapInsight(r))));
+  }
+
+  /** Dispara la generación ahora mismo (botón "Actualizar ahora"). */
+  regenerarInsights(): Observable<InsightCard[]> {
+    return this.http
+      .post<{ insights: InsightMensualApi[] }>(`${AI_SERVICE_BASE_URL}/insights/generar`, {}, { headers: this.authHeaders() })
+      .pipe(map((res) => res.insights.map((r) => this.mapInsight(r))));
+  }
+
+  private mapInsight(row: InsightMensualApi): InsightCard {
+    const fecha = new Date(row.generado_en);
+    return {
+      id: `insight-${row.anio}-${row.mes}-${row.orden}`,
+      title: row.titulo,
+      category: (row.categoria as InsightCard['category']) || 'ventas',
+      categoryLabel: _CATEGORY_LABELS[row.categoria] || 'Gerencia',
+      impactLevel: (row.impacto as InsightCard['impactLevel']) || 'oportunidad',
+      impactBadgeColor: _IMPACT_COLORS[row.impacto] || 'bg-slate-600 text-white',
+      summary: row.resumen,
+      description: row.resumen,
+      keyMetric: '',
+      recommendation: row.recomendacion,
+      date: fecha.toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' }),
+      widgetTipo: row.widget_tipo,
+      widgetPayload: row.widget_payload ?? undefined
+    };
+  }
+
+  private authHeaders(): HttpHeaders {
+    const token = this.authService.currentUser()?.token;
+    return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
   }
 }

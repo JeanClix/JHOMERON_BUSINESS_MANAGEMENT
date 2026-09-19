@@ -7,6 +7,9 @@ extrae:
   - ticket promedio por cliente
   - tendencia general de ventas
   - mapa de Peru por departamento (monto, sin cruce de linea)
+  - clientes en riesgo de inactividad, a nivel empresa (ver /clientes-en-riesgo
+    abajo) -- version gerencial de /vendedores/me/clientes-inactivos, mismo
+    dato crudo (bi.v_cliente_frecuencia en vez de la variante por vendedor)
 
 FASE 2 (bloqueado, ver TODO.md y schema-bi.sql) -- pendiente de que el SP de
 extraccion traiga categoria (OITB) y costo:
@@ -171,3 +174,80 @@ def mapa_departamentos(
             ).fetchall()
 
     return {"anio": anio, "mes": mes, "departamentos": filas}
+
+
+@router.get("/clientes-en-riesgo")
+def clientes_en_riesgo(
+    dias_umbral: int = Query(
+        default=30,
+        ge=1,
+        description="Dias sin comprar (con CUALQUIER vendedor) para considerar al cliente en riesgo de inactividad. Mismo corte que /vendedores/me/clientes-inactivos.",
+    ),
+    dias_umbral_max: int = Query(
+        default=50,
+        ge=1,
+        description="Tope de dias sin comprar: mas alla de esto se considera cliente perdido, no un caso a priorizar ahora.",
+    ),
+    dias_compra_minimos: int = Query(
+        default=5,
+        ge=1,
+        description=(
+            "Dias distintos con compra (historico) minimos para considerar al cliente. "
+            "bi.v_cliente_frecuencia no trackea numero de transacciones, solo dias "
+            "distintos de compra -- un cliente con 1-2 dias de compra aislados no tiene "
+            "un patron de recompra que se pueda decir que 'se rompio'."
+        ),
+    ),
+    monto_minimo: float = Query(default=1000, ge=0, description="Monto historico minimo en soles para considerar al cliente relevante."),
+    limite: int = Query(default=20, le=100),
+    _claims: dict = Depends(require_gerencia),
+):
+    """Clientes en riesgo de inactividad a nivel de TODA la empresa (sin
+    distincion de vendedor) -- version gerencial de
+    /vendedores/me/clientes-inactivos, sobre bi.v_cliente_frecuencia en vez
+    de la variante acotada a un vendedor. Igual que alla, se devuelve el dato
+    crudo (deterministico, auditable); la redaccion de una recomendacion con
+    LLM es una decision de otra capa, no de este endpoint.
+
+    Ademas del listado (acotado por `limite`, ordenado por monto historico
+    para priorizar los casos con mas en juego), se devuelve el TOTAL de
+    clientes en riesgo y el monto agregado en riesgo -- sin el limite -- para
+    poder mostrar un KPI ("42 clientes en riesgo, S/ 180,000 en juego") sin
+    tener que traer la lista completa.
+    """
+    with get_connection() as conn:
+        resumen = conn.execute(
+            """
+            SELECT COUNT(*) AS total_clientes, COALESCE(SUM(total_soles_historico), 0) AS monto_en_riesgo
+            FROM bi.v_cliente_frecuencia
+            WHERE dias_desde_ultima_compra >= %s
+              AND dias_desde_ultima_compra <= %s
+              AND dias_distintos_compra_historico > %s
+              AND total_soles_historico > %s
+            """,
+            (dias_umbral, dias_umbral_max, dias_compra_minimos, monto_minimo),
+        ).fetchone()
+
+        filas = conn.execute(
+            """
+            SELECT cliente, ruc, departamento, ultima_compra,
+                   dias_desde_ultima_compra, dias_distintos_compra_historico,
+                   total_soles_historico
+            FROM bi.v_cliente_frecuencia
+            WHERE dias_desde_ultima_compra >= %s
+              AND dias_desde_ultima_compra <= %s
+              AND dias_distintos_compra_historico > %s
+              AND total_soles_historico > %s
+            ORDER BY total_soles_historico DESC
+            LIMIT %s
+            """,
+            (dias_umbral, dias_umbral_max, dias_compra_minimos, monto_minimo, limite),
+        ).fetchall()
+
+    return {
+        "dias_umbral": dias_umbral,
+        "dias_umbral_max": dias_umbral_max,
+        "total_clientes_en_riesgo": resumen["total_clientes"],
+        "monto_en_riesgo_soles": resumen["monto_en_riesgo"],
+        "clientes": filas,
+    }

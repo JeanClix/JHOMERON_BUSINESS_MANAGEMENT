@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, EventEmitter, Input, Output, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { KpiMetric } from '../../../core/models/kpi.model';
 
@@ -14,8 +14,20 @@ import { KpiMetric } from '../../../core/models/kpi.model';
           <span class="text-xs font-bold text-slate-500 uppercase tracking-wider line-clamp-1">
             {{ metric().title }}
           </span>
-          <div [class]="getThemeIconClass(metric().colorTheme)">
-            <i [class]="metric().icon + ' text-xs'"></i>
+          <div class="flex items-center gap-1.5 shrink-0">
+            @if (explainable) {
+              <button
+                type="button"
+                (click)="explain.emit()"
+                title="Preguntarle a la IA sobre este dato"
+                class="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-[#0d3393] hover:text-white transition-colors"
+              >
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+              </button>
+            }
+            <div [class]="getThemeIconClass(metric().colorTheme)">
+              <i [class]="metric().icon + ' text-xs'"></i>
+            </div>
           </div>
         </div>
 
@@ -62,6 +74,8 @@ import { KpiMetric } from '../../../core/models/kpi.model';
 })
 export class KpiCardComponent {
   metric = input.required<KpiMetric>();
+  @Input() explainable = false;
+  @Output() explain = new EventEmitter<void>();
 
   getThemeIconClass(theme: string): string {
     const base = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ';

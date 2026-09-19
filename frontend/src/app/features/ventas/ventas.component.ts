@@ -36,6 +36,15 @@ export class VentasComponent {
   // reemplaza el "Juan Pérez" hardcodeado que había antes en el header.
   protected readonly currentUser = this.authService.currentUser;
 
+  // Zona de venta del vendedor logueado (ver User.location en el panel
+  // admin): "Lima" o "Provincia: <departamentos>" -- se muestra como
+  // "Provincia - <departamentos>" en el header.
+  protected readonly zonaVendedor = computed(() => {
+    const location = this.currentUser()?.location;
+    if (!location) return null;
+    return location.replace(/^Provincia:\s*/, 'Provincia - ');
+  });
+
   // Jhomeron Internal Sales Portal Modules. "Línea Marina" y "Generador de
   // Proformas" se sacaron del sidebar (no eran datos reales, ver README) --
   // el dashboard ahora conecta directo a backend/reporting.
@@ -162,7 +171,7 @@ export class VentasComponent {
     return pct === undefined ? null : pct;
   });
 
-  // Color de fondo de la "lata de pintura": rojo si no vendió nada, blanco
+  // Color de la pintura dentro de la lata: rojo si no vendió nada, blanco
   // mientras avanza hacia la meta, verde al llegar o superarla.
   protected readonly colorTachito = computed(() => {
     const pct = this.porcentajeCumplimiento();
@@ -172,14 +181,14 @@ export class VentasComponent {
     return '#ffffff'; // blanco: en camino hacia la meta
   });
 
-  // Color del número/porcentaje DENTRO de la lata -- contraste según el
-  // color de fondo de arriba (blanco sobre rojo/verde, azul sobre blanco).
-  protected readonly colorTextoTachito = computed(() => {
+  // Nivel visual de pintura dentro de la lata (0-100, para el alto en %).
+  // El % real puede pasar de 100 (sin tope, ver backend/reporting), pero la
+  // lata solo se puede "llenar" hasta el borde -- el número que se muestra
+  // encima sigue el valor real sin recortar.
+  protected readonly nivelPintura = computed(() => {
     const pct = this.porcentajeCumplimiento();
-    if (pct === null) return '#ffffff';
-    if (pct <= 0) return '#ffffff';
-    if (pct >= 100) return '#ffffff';
-    return '#0d3393'; // navy de marca sobre fondo blanco
+    if (pct === null) return 0;
+    return Math.min(100, Math.max(0, pct));
   });
 
   // Habilitación de las flechas de navegación de período: no se puede

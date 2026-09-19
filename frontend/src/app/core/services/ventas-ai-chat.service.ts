@@ -1,21 +1,27 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AI_SERVICE_BASE_URL } from '../config/ai-service.config';
 import { AiChatApiResponse, VentasChatMessage, VentasPresetPrompt } from '../models/ai-service.model';
 import { BusinessChartData } from '../models/chart.model';
+import { buildChartFromDatos } from '../utils/chart-from-datos';
+import { AuthService } from './auth.service';
 
 /**
  * Chat de ventas conectado al AI Service real (backend/intelligence/ai).
  * A diferencia de GerenciaChatService (que hoy simula respuestas), este
  * servicio consume /chat vía HTTP y solo trabaja con datos reales del
- * Data Warehouse (Text-to-SQL, ver ai.v_ventas / ai.v_ventas_mensual_departamento).
+ * Data Warehouse (Text-to-SQL sobre ai.v_ventas_vendedor -- /chat exige el
+ * JWT del vendedor y el propio AI Service fuerza el filtro por vendedor del
+ * lado del servidor, nunca confía en lo que escriba el LLM, ver README de
+ * backend/intelligence/ai).
  */
 @Injectable({
   providedIn: 'root'
 })
 export class VentasAiChatService {
   private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
 
   private readonly messagesSignal = signal<VentasChatMessage[]>([
     {
@@ -31,38 +37,40 @@ export class VentasAiChatService {
   public readonly messages = this.messagesSignal.asReadonly();
   public readonly isLoading = signal<boolean>(false);
 
-  // Preguntas frecuentes alineadas a los campos reales del modelo estrella
-  // (departamento, vendedor/empleado_venta, producto) -- ver ai.v_ventas.
+  // Preguntas frecuentes en primera persona -- /chat siempre responde sobre
+  // LAS VENTAS DEL VENDEDOR LOGUEADO (ver ai.v_ventas_vendedor), nunca de
+  // toda la empresa, así que el input rápido debe reflejar eso en vez de
+  // preguntar "vendimos" como si fuera un dato de gerencia.
   private readonly presetPrompts: VentasPresetPrompt[] = [
     {
-      id: 'p-mis-ventas',
+      id: 'p-mes',
+      icon: 'fa-solid fa-calendar-days',
+      label: 'Vendido este mes',
+      prompt: '¿Cuánto llevo vendido este mes?'
+    },
+    {
+      id: 'p-anio',
       icon: 'fa-solid fa-chart-line',
-      label: 'Total de ventas',
-      prompt: '¿Cuánto vendimos en total en soles?'
+      label: 'Vendido este año',
+      prompt: '¿Cuánto llevo vendido este año?'
     },
     {
       id: 'p-top-productos',
       icon: 'fa-solid fa-trophy',
-      label: 'Top productos',
-      prompt: '¿Cuáles son los 5 productos más vendidos por total en soles?'
+      label: 'Mis productos top',
+      prompt: '¿Cuáles son mis 5 productos más vendidos por total en soles?'
     },
     {
       id: 'p-tendencia',
       icon: 'fa-solid fa-chart-area',
-      label: 'Tendencia de ventas',
-      prompt: '¿Cómo fue la tendencia de ventas en los últimos 6 meses?'
-    },
-    {
-      id: 'p-ticket-promedio',
-      icon: 'fa-solid fa-receipt',
-      label: 'Ticket promedio',
-      prompt: '¿Cuál es el ticket promedio por cliente este mes?'
+      label: 'Mi tendencia',
+      prompt: '¿Cómo viene mi tendencia de ventas en los últimos 6 meses?'
     },
     {
       id: 'p-clientes-top',
       icon: 'fa-solid fa-building',
-      label: 'Top clientes',
-      prompt: '¿Cuáles son los 5 clientes con mayor monto de compra?'
+      label: 'Mis clientes top',
+      prompt: '¿Cuáles son mis 5 clientes con mayor monto de compra?'
     }
   ];
 
@@ -82,8 +90,19 @@ export class VentasAiChatService {
     this.isLoading.set(true);
     try {
       const respuesta = await firstValueFrom(
-        this.http.post<AiChatApiResponse>(`${AI_SERVICE_BASE_URL}/chat`, { pregunta: trimmed })
+        this.http.post<AiChatApiResponse>(
+          `${AI_SERVICE_BASE_URL}/chat`,
+          { pregunta: trimmed },
+          { headers: this.authHeaders() }
+        )
       );
+
+      // El SQL ejecutado no se muestra en la UI del vendedor (no le aporta
+      // nada, ver decisión del producto) -- queda solo en consola para poder
+      // depurar una respuesta rara sin tener que ir a ai.consulta_log.
+      if (respuesta.sql_generado) {
+        console.log('[Asistente de Ventas] SQL ejecutado:', respuesta.sql_generado, `(${respuesta.filas_retornadas} filas)`);
+      }
 
       this.messagesSignal.update((msgs) => [
         ...msgs,
@@ -97,15 +116,13 @@ export class VentasAiChatService {
           datos: respuesta.datos
         }
       ]);
-    } catch (err) {
+    } catch (err: any) {
       this.messagesSignal.update((msgs) => [
         ...msgs,
         {
           id: `err-${Date.now()}`,
           sender: 'assistant',
-          content:
-            'No pude conectar con el Asistente de Ventas. Verifica que el AI Service esté corriendo en ' +
-            `${AI_SERVICE_BASE_URL} (backend/intelligence/ai).`,
+          content: this.mensajeError(err),
           timestamp: this.now(),
           isError: true
         }
@@ -113,6 +130,24 @@ export class VentasAiChatService {
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  private authHeaders(): HttpHeaders {
+    const token = this.authService.currentUser()?.token;
+    return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
+  }
+
+  private mensajeError(err: any): string {
+    if (err?.status === 401 || err?.status === 403) {
+      return 'Tu sesión no tiene permiso para usar el asistente. Vuelve a iniciar sesión e intenta de nuevo.';
+    }
+    if (err?.status === 0) {
+      return (
+        'No pude conectar con el Asistente de Ventas. Verifica que el AI Service esté corriendo en ' +
+        `${AI_SERVICE_BASE_URL} (backend/intelligence/ai).`
+      );
+    }
+    return 'Ocurrió un error consultando el asistente. Intenta de nuevo en unos segundos.';
   }
 
   clearHistory(): void {
@@ -126,57 +161,9 @@ export class VentasAiChatService {
     ]);
   }
 
-  /**
-   * Heurística para convertir filas de datos (ai.v_ventas / vistas agregadas)
-   * en un gráfico de barras: usa la primera columna no-numérica como etiqueta
-   * y la primera columna numérica como valor. Solo tiene sentido con listados
-   * (2+ filas); un solo valor agregado (ej. "total ventas") no genera gráfico.
-   */
+  /** Ver core/utils/chart-from-datos.ts -- compartido con GerenciaChatService. */
   buildChartFromDatos(datos: Record<string, unknown>[] | null | undefined): BusinessChartData | null {
-    if (!datos || datos.length < 2) return null;
-
-    const primera = datos[0];
-    const columnas = Object.keys(primera);
-
-    const esNumerica = (col: string) => datos.every((fila) => this.toNumber(fila[col]) !== null);
-
-    const colValor = columnas.find(esNumerica);
-    const colEtiqueta = columnas.find((c) => c !== colValor && !esNumerica(c));
-
-    if (!colValor || !colEtiqueta) return null;
-
-    const filas = datos.slice(0, 15);
-
-    return {
-      id: `chart-${Date.now()}`,
-      title: this.tituloDesdeColumna(colValor),
-      type: 'bar',
-      labels: filas.map((f) => this.truncar(String(f[colEtiqueta] ?? '—'), 28)),
-      datasets: [
-        {
-          label: this.tituloDesdeColumna(colValor),
-          data: filas.map((f) => this.toNumber(f[colValor]) ?? 0),
-          backgroundColor: '#0d3393',
-          borderWidth: 1
-        }
-      ]
-    };
-  }
-
-  private toNumber(value: unknown): number | null {
-    if (value === null || value === undefined) return null;
-    const n = typeof value === 'number' ? value : parseFloat(String(value));
-    return Number.isFinite(n) ? n : null;
-  }
-
-  private tituloDesdeColumna(col: string): string {
-    return col
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
-  private truncar(texto: string, max: number): string {
-    return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
+    return buildChartFromDatos(datos);
   }
 
   private now(): string {

@@ -5,6 +5,7 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
 import { KpiCardComponent } from '../../../../shared/components/kpi-card/kpi-card.component';
 import { BusinessChartComponent } from '../../../../shared/components/business-chart/business-chart.component';
 import { InsightCardComponent } from '../../../../shared/components/insight-card/insight-card.component';
+import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
 
 @Component({
   selector: 'app-gerencia-analisis',
@@ -13,7 +14,8 @@ import { InsightCardComponent } from '../../../../shared/components/insight-card
     CommonModule,
     KpiCardComponent,
     BusinessChartComponent,
-    InsightCardComponent
+    InsightCardComponent,
+    MarkdownPipe
   ],
   template: `
     <div class="space-y-6">
@@ -32,11 +34,11 @@ import { InsightCardComponent } from '../../../../shared/components/insight-card
           </div>
 
           <h1 class="text-xl md:text-2xl font-black text-slate-900 leading-tight">
-            {{ chatService.activeAnalysis()?.query || 'Analizando información...' }}
+            Asistente de Gerencia
           </h1>
 
           <span class="text-xs text-slate-400 font-mono">
-            Generado: {{ chatService.activeAnalysis()?.timestamp || 'En proceso...' }}
+            {{ chatService.activeAnalysis()?.timestamp ? ('Respondido: ' + chatService.activeAnalysis()!.timestamp) : 'En proceso...' }}
           </span>
         </div>
 
@@ -70,26 +72,35 @@ import { InsightCardComponent } from '../../../../shared/components/insight-card
             </p>
           </div>
 
-          <!-- Progress Bar simulation -->
-          <div class="max-w-md mx-auto h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              class="h-full bg-[#0d3393] transition-all duration-300"
-              [style.width]="getStageProgressWidth()"
-            ></div>
+          <!-- Barra indeterminada: no sabemos cuánto falta (espera real al AI
+               Service, no una simulación de duración fija), así que no
+               fingimos un porcentaje -- solo mostramos actividad continua. -->
+          <div class="max-w-md mx-auto h-2 bg-slate-100 rounded-full overflow-hidden relative">
+            <div class="absolute inset-y-0 bg-[#0d3393] rounded-full animate-progress-indeterminate"></div>
           </div>
         </div>
       } @else if (chatService.activeAnalysis(); as res) {
         
-        <!-- 1. Executive Summary Callout -->
-        <div class="rounded-2xl bg-gradient-to-br from-[#0c2461] to-[#0d3393] p-6 text-white shadow-md space-y-3">
-          <div class="flex items-center gap-2">
-            <i class="fa-solid fa-quote-left text-amber-400 text-base"></i>
-            <span class="text-xs font-bold uppercase tracking-wider text-amber-300">Resumen Ejecutivo</span>
+        <!-- 1. Conversación: pregunta del usuario + respuesta del asistente -->
+        <div class="space-y-3">
+          <div class="flex justify-end">
+            <div class="max-w-2xl rounded-2xl rounded-tr-sm bg-[#0d3393] text-white px-4 py-3 text-sm font-medium shadow-sm">
+              {{ res.query }}
+            </div>
           </div>
 
-          <p class="text-xs md:text-sm font-medium leading-relaxed text-slate-100">
-            {{ res.summary }}
-          </p>
+          <div class="flex justify-start">
+            <div class="max-w-3xl w-full rounded-2xl rounded-tl-sm bg-white border border-slate-200 px-4 py-3.5 shadow-xs">
+              <div class="flex items-center gap-1.5 mb-2 text-[10px] font-bold uppercase tracking-wider text-[#0d3393]">
+                <i class="fa-solid fa-robot"></i>
+                <span>Asistente de Gerencia</span>
+              </div>
+              <div
+                class="text-xs md:text-sm text-slate-700 leading-relaxed prose prose-sm prose-slate max-w-none prose-table:text-xs prose-th:bg-slate-50"
+                [innerHTML]="res.summary | markdown"
+              ></div>
+            </div>
+          </div>
         </div>
 
         <!-- 2. KPIs Cards Row -->
@@ -220,15 +231,4 @@ import { InsightCardComponent } from '../../../../shared/components/insight-card
 })
 export class GerenciaAnalisisComponent {
   chatService = inject(GerenciaChatService);
-
-  getStageProgressWidth(): string {
-    switch (this.chatService.processingStage()) {
-      case 'analyzing_query': return '25%';
-      case 'fetching_data': return '50%';
-      case 'preparing_analysis': return '75%';
-      case 'generating_visualization': return '90%';
-      case 'completed': return '100%';
-      default: return '10%';
-    }
-  }
 }

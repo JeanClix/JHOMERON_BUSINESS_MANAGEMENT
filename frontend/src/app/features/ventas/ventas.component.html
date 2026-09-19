@@ -71,7 +71,9 @@
           </div>
           <div class="hidden lg:flex flex-col">
             <span class="text-xs font-bold text-slate-900 leading-tight">{{ currentUser()?.name || 'Vendedor' }}</span>
-            <span class="text-[10px] text-slate-500 font-semibold">{{ currentUser()?.title || currentUser()?.roleLabel }}</span>
+            @if (zonaVendedor()) {
+              <span class="text-[10px] text-slate-400 font-medium">{{ zonaVendedor() }}</span>
+            }
           </div>
 
           <button
@@ -135,12 +137,20 @@
                   <div class="absolute -top-2 left-1/2 -translate-x-1/2 w-10 h-4 rounded-full border-[3px] border-white/50 border-b-0"></div>
                   <!-- Tapa -->
                   <div class="absolute top-1 left-1/2 -translate-x-1/2 w-[4.5rem] h-3.5 rounded-full bg-white/25 border-2 border-white/50 z-10"></div>
-                  <!-- Cuerpo de la lata: color sólido según el estado de cumplimiento -->
-                  <div
-                    class="absolute inset-x-0.5 top-3.5 bottom-0 rounded-b-xl rounded-t-sm border-2 border-white/40 flex items-center justify-center transition-colors duration-500 shadow-inner"
-                    [style.backgroundColor]="colorTachito()"
-                  >
-                    <span class="text-xl font-black leading-none" [style.color]="colorTextoTachito()">
+                  <!-- Cuerpo de la lata: nivel de pintura sube/baja según el % de cumplimiento -->
+                  <div class="absolute inset-x-0.5 top-3.5 bottom-0 rounded-b-xl rounded-t-sm border-2 border-white/40 overflow-hidden shadow-inner bg-white/10">
+                    <div
+                      class="absolute inset-x-0 bottom-0 transition-[height] duration-700 ease-out"
+                      [style.height.%]="nivelPintura()"
+                      [style.backgroundColor]="colorTachito()"
+                    >
+                      <!-- Brillo de la superficie del líquido -->
+                      <div class="absolute inset-x-0 top-0 h-1.5 bg-white/40"></div>
+                    </div>
+                    <span
+                      class="absolute inset-0 flex items-center justify-center text-xl font-black leading-none text-white"
+                      style="text-shadow: 0 1px 3px rgba(0,0,0,0.65), 0 0 4px rgba(0,0,0,0.35);"
+                    >
                       @if (porcentajeCumplimiento() !== null) {
                         {{ porcentajeCumplimiento() | number:'1.0-0' }}%
                       } @else {

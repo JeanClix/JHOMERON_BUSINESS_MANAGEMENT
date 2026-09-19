@@ -33,6 +33,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+        // El preflight CORS (OPTIONS) nunca manda el header Authorization -- si
+        // este filtro lo bloqueara con 401, el navegador aborta la peticion real
+        // por CORS antes de que llegue con el Bearer token.
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         return !path.startsWith("/api/admin/");
     }
 

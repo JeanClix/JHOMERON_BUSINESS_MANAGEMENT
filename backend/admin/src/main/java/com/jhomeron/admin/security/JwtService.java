@@ -22,6 +22,10 @@ import java.util.Date;
  *   sub                  -> username
  *   uid                  -> id numerico del usuario
  *   role                 -> 'ADMIN' | 'GERENCIA' | 'VENDEDOR'
+ *   name                 -> nombre real de la persona (User.name), para que
+ *                           un servicio downstream (ej. AI Service) pueda
+ *                           saludarla por su nombre sin tener que resolverlo
+ *                           el mismo -- nunca usarlo para autorizacion.
  *   vendedorNombreSap    -> solo si role=VENDEDOR (ver User.vendedorNombreSap
  *                           para la deuda tecnica de por que es un nombre y
  *                           no un codigo estable)
@@ -56,6 +60,7 @@ public class JwtService {
                 .subject(user.getUsername())
                 .claim("uid", user.getId())
                 .claim("role", user.getRole())
+                .claim("name", user.getName())
                 .issuedAt(ahora)
                 .expiration(expira);
 

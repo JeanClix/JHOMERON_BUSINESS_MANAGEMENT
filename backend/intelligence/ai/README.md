@@ -8,9 +8,10 @@ RAG con embeddings — los datos son estructurados/numéricos, no documentos.
 
 - El LLM nunca inventa cifras: siempre llama a la tool `ejecutar_sql` antes de
   responder algo numérico.
-- El LLM solo ve dos vistas de negocio (`ai.v_ventas`,
-  `ai.v_ventas_mensual_departamento`), nunca las tablas crudas del modelo
-  estrella ni de staging.
+- El LLM solo ve vistas de negocio, nunca las tablas crudas del modelo
+  estrella ni de staging: `ai.v_ventas` / `ai.v_ventas_mensual_departamento`
+  (agregados de toda la empresa, solo GERENCIA/ADMIN) o `ai.v_ventas_vendedor`
+  (solo VENDEDOR, pre-filtrada a sus propias ventas -- ver más abajo).
 - Se conecta con el rol Postgres `ai_readonly`, que a nivel de base de datos
   no puede escribir ni leer nada fuera de esas vistas (ver
   `backend/batch/src/main/resources/schemas/schema-ai.sql`).
@@ -35,11 +36,12 @@ cp .env.example .env            # ajustar si tu Postgres/Ollama no son los defau
 uvicorn src.main:app --reload --port 8090
 ```
 
-Probar:
+Probar (requiere JWT, ver sección de scoping por rol más abajo):
 
 ```bash
 curl -X POST http://localhost:8090/chat \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"pregunta": "¿Cuánto vendimos en total?"}'
 ```
 
@@ -54,12 +56,29 @@ intelligence/ai/
 │   ├── audit.py       # Registro en ai.consulta_log
 │   ├── db.py          # Conexión de solo lectura
 │   ├── config.py      # Settings desde .env
-│   ├── auth.py        # Valida el JWT de admin (solo lo usa /recomendaciones/reactivacion)
+│   ├── auth.py        # Valida el JWT de admin -- ahora lo usan /chat y /recomendaciones/reactivacion
 │   ├── reporting_client.py  # Trae clientes inactivos desde backend/reporting
 │   └── recomendaciones.py   # Redacta la recomendación de reactivación con LLM
 └── prompts/
-    └── system_prompt.md
+    ├── system_prompt.md           # GERENCIA/ADMIN: agregados de toda la empresa
+    └── system_prompt_vendedor.md  # VENDEDOR: solo sus propias ventas
 ```
+
+## Scoping de `/chat` por rol
+
+`/chat` exige JWT (`Authorization: Bearer <token>`, mismo emitido por
+`backend/admin`). El rol del token decide qué puede ver el LLM:
+
+- **VENDEDOR**: cada consulta SQL que genere el LLM queda forzada a
+  `ai.v_ventas_vendedor` (nunca `ai.v_ventas`/`ai.v_ventas_mensual_departamento`),
+  una vista que filtra por `vendedorNombreSap` del JWT vía una variable de
+  sesión de Postgres (`app.current_vendedor`, fijada en `tools.py` con
+  `set_config` antes de correr el SQL). El vendedor no puede ver ventas de
+  otro aunque lo pida explícitamente o intente un prompt injection -- el
+  filtro no depende de lo que el LLM escriba, vive en la vista.
+- **GERENCIA/ADMIN**: sin restricción de vendedor, accede a `ai.v_ventas` /
+  `ai.v_ventas_mensual_departamento` (agregados de toda la empresa).
+- Cualquier otro rol: `403`.
 
 ## `/recomendaciones/reactivacion` (vendedores)
 

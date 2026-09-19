@@ -3,9 +3,6 @@ backend/reporting/src/auth.py. No es una fuente de verdad compartida entre
 servicios (cada uno valida el token de forma independiente contra el mismo
 secreto), es deliberado: este servicio no depende de que reporting este
 arriba para saber "quien pregunta".
-
-Solo lo usa /recomendaciones/reactivacion -- /chat sigue sin auth (fuera de
-alcance de esta iteracion, ver README).
 """
 from typing import Any
 
@@ -40,3 +37,24 @@ def require_vendedor(claims: dict = Depends(get_current_claims)) -> str:
             "Este usuario no tiene vendedor_nombre_sap configurado en el panel admin.",
         )
     return vendedor
+
+
+def require_gerencia(claims: dict = Depends(get_current_claims)) -> None:
+    """Endpoints agregados de toda la empresa (ej. /insights/*) -- rechaza
+    VENDEDOR, solo GERENCIA/ADMIN pueden verlos."""
+    if claims.get("role") not in ("GERENCIA", "ADMIN"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Requiere rol GERENCIA o ADMIN.")
+
+
+def resolve_chat_identity(claims: dict = Depends(get_current_claims)) -> str | None:
+    """Identidad para /chat: VENDEDOR -> su vendedor_nombre_sap (fuerza el
+    scoping de cada consulta SQL a sus propias ventas, ver tools.py);
+    GERENCIA/ADMIN -> None (puede ver los agregados de toda la empresa).
+    Cualquier otro rol queda afuera -- nunca se lee el vendedor de un
+    parametro que mande el cliente, siempre del JWT."""
+    role = claims.get("role")
+    if role == "VENDEDOR":
+        return require_vendedor(claims)
+    if role in ("GERENCIA", "ADMIN"):
+        return None
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "Rol no autorizado para el asistente de IA.")

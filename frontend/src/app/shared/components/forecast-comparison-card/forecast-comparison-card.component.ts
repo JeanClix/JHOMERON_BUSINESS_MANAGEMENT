@@ -1,4 +1,4 @@
-import { Component, input, computed } from '@angular/core';
+import { Component, EventEmitter, Output, input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PrediccionProximoMes } from '../../../core/models/prediccion.model';
 
@@ -21,9 +21,19 @@ import { PrediccionProximoMes } from '../../../core/models/prediccion.model';
           </div>
           <h3 class="text-sm font-extrabold text-slate-900">Pronóstico de Ventas</h3>
         </div>
-        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
-          Modelo Real (MLflow)
-        </span>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            (click)="explain.emit()"
+            title="Preguntarle a la IA sobre esta predicción"
+            class="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-[#0d3393] hover:text-white transition-colors"
+          >
+            <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+          </button>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+            Modelo Real (MLflow)
+          </span>
+        </div>
       </div>
 
       <div class="px-5 pt-3 text-[10px] text-slate-400">
@@ -72,6 +82,7 @@ import { PrediccionProximoMes } from '../../../core/models/prediccion.model';
 })
 export class ForecastComparisonCardComponent {
   prediccion = input.required<PrediccionProximoMes>();
+  @Output() explain = new EventEmitter<void>();
 
   valorMesPasado = computed(() => {
     const real = this.prediccion().backtest?.backtest_real_soles;

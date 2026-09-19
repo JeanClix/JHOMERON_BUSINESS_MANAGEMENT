@@ -118,19 +118,6 @@ export class GerenciaLayoutComponent {
           icon: 'fa-solid fa-lightbulb'
         }
       ]
-    },
-    {
-      groupLabel: 'Administración',
-      items: [
-        {
-          id: 'admin-panel',
-          label: 'Panel de Administración',
-          route: '/admin',
-          icon: 'fa-solid fa-users-cog',
-          badge: 'Nuevo',
-          badgeColor: 'bg-blue-500 text-white'
-        }
-      ]
     }
   ];
 

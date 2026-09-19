@@ -21,3 +21,25 @@ export interface PrediccionProximoMes {
   backtest?: BacktestInfo;
   nota?: string;
 }
+
+/** Contrato con el ML Service, /predict/productos (desglose por producto de
+ * la misma predicción de /predict/proximo-mes -- ver comentario en
+ * intelligence/ml/service/main.py sobre por qué solo se expone la caída). */
+export interface ProductoProyectado {
+  codigo_producto: string;
+  producto: string;
+  ventas_actuales_soles: number;
+  prediccion_soles: number;
+  cambio_pct: number | null;
+}
+
+export interface ProductosProyectadosResponse {
+  periodo_dias: number;
+  periodo_prediccion?: string;
+  fecha_datos_hasta: string;
+  productos_considerados: number;
+  productos_evaluados_en_ranking?: number;
+  mayor_crecimiento_proyectado: ProductoProyectado[];
+  mayor_caida_proyectada: ProductoProyectado[];
+  nota?: string;
+}

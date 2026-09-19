@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/typography';
 
 @theme {
   --font-outfit: 'Outfit', sans-serif;
@@ -30,4 +31,16 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #ef0606;
+}
+
+/* Barra de progreso indeterminada: para esperas de duración real/desconocida
+   (ej. respuesta del AI Service) -- un ancho fijo por etapa se ve "trabado"
+   cuando la etapa real tarda más que la simulación que la originó. */
+@keyframes progress-indeterminate {
+  0% { left: -40%; width: 40%; }
+  50% { left: 30%; width: 55%; }
+  100% { left: 100%; width: 40%; }
+}
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.3s ease-in-out infinite;
 }

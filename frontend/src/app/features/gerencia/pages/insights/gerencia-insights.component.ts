@@ -1,6 +1,5 @@
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
 import { GerenciaDataService } from '../../../../core/services/gerencia-data.service';
 import { InsightCard } from '../../../../core/models/insight.model';
 import { InsightCardComponent } from '../../../../shared/components/insight-card/insight-card.component';
@@ -57,7 +56,7 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
         @for (insight of filteredInsights(); track insight.id) {
           <app-insight-card
             [insight]="insight"
-            (askAi)="onAskAi($event)"
+            (verDetalle)="chatService.mostrarInsight($event)"
           ></app-insight-card>
         }
       </div>
@@ -66,8 +65,7 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
 })
 export class GerenciaInsightsComponent implements OnInit {
   private dataService = inject(GerenciaDataService);
-  private chatService = inject(GerenciaChatService);
-  private router = inject(Router);
+  protected chatService = inject(GerenciaChatService);
 
   insights = signal<InsightCard[]>([]);
   selectedCategory = signal<string>('all');
@@ -79,10 +77,5 @@ export class GerenciaInsightsComponent implements OnInit {
 
   ngOnInit() {
     this.dataService.getExecutiveInsights().subscribe(data => this.insights.set(data));
-  }
-
-  onAskAi(prompt: string) {
-    this.chatService.sendMessage(prompt);
-    this.router.navigate(['/gerencia/chat']);
   }
 }

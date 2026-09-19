@@ -163,3 +163,24 @@ export interface MapaDepartamentosResponse {
   mes: number | null;
   departamentos: DepartamentoVentas[];
 }
+
+export interface ClienteEnRiesgo {
+  cliente: string;
+  ruc: string;
+  departamento: string;
+  ultima_compra: string;
+  dias_desde_ultima_compra: number;
+  // Dias DISTINTOS con compra (historico), no numero de transacciones --
+  // bi.v_cliente_frecuencia (a diferencia de la variante por vendedor) no
+  // trackea conteo de transacciones, ver backend/reporting/src/routers/gerencia.py.
+  dias_distintos_compra_historico: number;
+  total_soles_historico: number;
+}
+
+export interface ClientesEnRiesgoResponse {
+  dias_umbral: number;
+  dias_umbral_max: number;
+  total_clientes_en_riesgo: number;
+  monto_en_riesgo_soles: number;
+  clientes: ClienteEnRiesgo[];
+}

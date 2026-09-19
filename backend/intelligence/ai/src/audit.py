@@ -5,6 +5,7 @@ from .db import get_connection
 
 def registrar_consulta(
     pregunta_usuario: str,
+    vendedor: str | None,
     sql_generado: str | None,
     filas_retornadas: int | None,
     respuesta_llm: str | None,
@@ -17,11 +18,11 @@ def registrar_consulta(
         conn.execute(
             """
             INSERT INTO ai.consulta_log
-                (pregunta_usuario, sql_generado, filas_retornadas, respuesta_llm,
+                (pregunta_usuario, vendedor, sql_generado, filas_retornadas, respuesta_llm,
                  modelo, exito, error, duracion_ms)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (pregunta_usuario, sql_generado, filas_retornadas, respuesta_llm,
+            (pregunta_usuario, vendedor, sql_generado, filas_retornadas, respuesta_llm,
              modelo, exito, error, duracion_ms),
         )
         conn.commit()

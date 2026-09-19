@@ -36,25 +36,27 @@ import { InsightCard } from '../../../core/models/insight.model';
           </div>
         </div>
 
-        @if (insight().actionPrompt) {
-          <button
-            type="button"
-            (click)="onAskAi(insight().actionPrompt!)"
-            class="w-full rounded-xl bg-[#0d3393]/10 hover:bg-[#0d3393] text-[#0d3393] hover:text-white px-3 py-2 text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 group"
-          >
-            <i class="fa-solid fa-robot text-xs group-hover:scale-110 transition-transform"></i>
-            <span>Consultar con IA Gerencial</span>
-          </button>
-        }
+        <button
+          type="button"
+          (click)="onVerDetalle()"
+          class="w-full rounded-xl bg-[#0d3393]/10 hover:bg-[#0d3393] text-[#0d3393] hover:text-white px-3 py-2 text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 group"
+        >
+          <i class="fa-solid fa-robot text-xs group-hover:scale-110 transition-transform"></i>
+          <span>Ver Detalle y Mini Dashboard</span>
+        </button>
       </div>
     </div>
   `
 })
 export class InsightCardComponent {
   insight = input.required<InsightCard>();
-  askAi = output<string>();
+  /** Emite la tarjeta completa (no solo un prompt de texto) -- el consumidor
+   * ya tiene el mini-dashboard pre-calculado en widgetTipo/widgetPayload,
+   * no hace falta otra llamada al LLM para mostrarlo (ver
+   * GerenciaDashboardComponent.mostrarInsight). */
+  verDetalle = output<InsightCard>();
 
-  onAskAi(prompt: string) {
-    this.askAi.emit(prompt);
+  onVerDetalle() {
+    this.verDetalle.emit(this.insight());
   }
 }

@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"
     llm_model: str = "llama3.1"
-    sql_tool_max_rows: int = 200
+    sql_tool_max_rows: int = 40
 
     # Para /recomendaciones/reactivacion: valida el JWT emitido por admin
     # (MISMO valor que JWT_SECRET en backend/admin y backend/reporting) y

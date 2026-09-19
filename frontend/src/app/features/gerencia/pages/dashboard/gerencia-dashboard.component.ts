@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { GerenciaDataService } from '../../../../core/services/gerencia-data.service';
@@ -7,6 +7,7 @@ import { KpiMetric } from '../../../../core/models/kpi.model';
 import { BusinessChartData } from '../../../../core/models/chart.model';
 import { InsightCard } from '../../../../core/models/insight.model';
 import {
+  ClienteEnRiesgo,
   ClienteTopGerencia,
   DepartamentoVentas,
   ProductoGerencia,
@@ -18,7 +19,7 @@ import { InsightCardComponent } from '../../../../shared/components/insight-card
 import { ForecastComparisonCardComponent } from '../../../../shared/components/forecast-comparison-card/forecast-comparison-card.component';
 import { GerenciaChatService } from '../../../../core/services/gerencia-chat.service';
 import { PrediccionService } from '../../../../core/services/prediccion.service';
-import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
+import { PrediccionProximoMes, ProductoProyectado } from '../../../../core/models/prediccion.model';
 
 @Component({
   selector: 'app-gerencia-dashboard',
@@ -99,7 +100,7 @@ import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
       <!-- Executive KPIs Grid (datos reales de backend/reporting) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         @for (kpi of kpis(); track kpi.id) {
-          <app-kpi-card [metric]="kpi"></app-kpi-card>
+          <app-kpi-card [metric]="kpi" [explainable]="true" (explain)="explicarCarta(kpi.title)"></app-kpi-card>
         }
 
         <!-- Bloqueado hasta Fase 2: requiere costo/categoría en el pipeline del batch -->
@@ -112,7 +113,10 @@ import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
 
       <!-- Real vs. Predicción ML (Random Forest, Model Registry MLflow) -->
       @if (prediccion()) {
-        <app-forecast-comparison-card [prediccion]="prediccion()!"></app-forecast-comparison-card>
+        <app-forecast-comparison-card
+          [prediccion]="prediccion()!"
+          (explain)="explicarCarta('Pronóstico de Ventas del próximo mes')"
+        ></app-forecast-comparison-card>
       } @else if (errorPrediccion()) {
         <div class="rounded-2xl bg-white p-5 border border-rose-200 shadow-xs text-xs text-rose-600">
           <i class="fa-solid fa-triangle-exclamation mr-1.5"></i>
@@ -123,17 +127,17 @@ import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
       <!-- Main Business Charts Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         @if (chartTendencia()) {
-          <app-business-chart [chartData]="chartTendencia()!"></app-business-chart>
+          <app-business-chart [chartData]="chartTendencia()!" [explainable]="true" (explain)="explicarCarta('Evolución de Ventas del año')"></app-business-chart>
         }
         @if (chartTopProductos()) {
-          <app-business-chart [chartData]="chartTopProductos()!"></app-business-chart>
+          <app-business-chart [chartData]="chartTopProductos()!" [explainable]="true" (explain)="explicarCarta('Top Productos por Facturación')"></app-business-chart>
         }
       </div>
 
       <!-- Departamentos & Clientes que más consumen -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         @if (chartDepartamentos()) {
-          <app-business-chart [chartData]="chartDepartamentos()!"></app-business-chart>
+          <app-business-chart [chartData]="chartDepartamentos()!" [explainable]="true" (explain)="explicarCarta('Ventas por Departamento')"></app-business-chart>
         }
 
         <div class="rounded-2xl bg-white p-5 border border-slate-200 shadow-sm flex flex-col">
@@ -142,9 +146,19 @@ import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
               <span class="h-2 w-2 rounded-full bg-[#0d3393]"></span>
               Clientes que Más Consumen
             </h3>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-              {{ periodoLabel() }}
-            </span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                (click)="explicarCarta('Clientes que Más Consumen')"
+                title="Preguntarle a la IA sobre esta lista"
+                class="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-[#0d3393] hover:text-white transition-colors"
+              >
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+              </button>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                {{ periodoLabel() }}
+              </span>
+            </div>
           </div>
           <p class="text-xs text-slate-500 mb-4">Ordenados por cantidad de productos distintos comprados en el mes.</p>
 
@@ -166,6 +180,94 @@ import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
         </div>
       </div>
 
+      <!-- ML: productos con caída proyectada & clientes en riesgo -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="rounded-2xl bg-white p-5 border border-slate-200 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-[#ef0606]"></span>
+              Productos con Caída Proyectada
+            </h3>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                (click)="explicarCarta('Productos con Caída Proyectada (predicción ML)')"
+                title="Preguntarle a la IA sobre esta proyección"
+                class="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-[#0d3393] hover:text-white transition-colors"
+              >
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+              </button>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                ML
+              </span>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 mb-4">
+            Predicción próximos 30 días vs. nivel actual (Random Forest, ver tarjeta de pronóstico arriba). Solo caída: el
+            ranking de crecimiento del modelo aún no es confiable para productos de bajo volumen.
+          </p>
+
+          @if (errorProductosProyectados()) {
+            <p class="text-xs text-rose-500 text-center py-8">No se pudo cargar la proyección ({{ errorProductosProyectados() }}).</p>
+          } @else if (productosCaidaProyectada().length) {
+            <div class="space-y-2 flex-1">
+              @for (p of productosCaidaProyectada(); track p.codigo_producto) {
+                <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5 text-xs">
+                  <div class="min-w-0 pr-2">
+                    <span class="font-bold text-slate-900 block truncate">{{ p.producto }}</span>
+                    <span class="text-slate-400 text-[10px]">
+                      S/ {{ p.ventas_actuales_soles | number:'1.0-0' }} actual → S/ {{ p.prediccion_soles | number:'1.0-0' }} proyectado
+                    </span>
+                  </div>
+                  <strong class="text-[#ef0606] font-bold whitespace-nowrap">{{ p.cambio_pct }}%</strong>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="text-xs text-slate-400 text-center py-8">Sin caídas proyectadas relevantes por ahora.</p>
+          }
+        </div>
+
+        <div class="rounded-2xl bg-white p-5 border border-slate-200 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-[#ef0606]"></span>
+              Clientes en Riesgo de Inactividad
+            </h3>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                (click)="explicarCarta('Clientes en Riesgo de Inactividad')"
+                title="Preguntarle a la IA sobre esta lista"
+                class="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-[#0d3393] hover:text-white transition-colors"
+              >
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+              </button>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                {{ totalClientesEnRiesgo() }} en total
+              </span>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 mb-4">Entre 30 y 50 días sin comprar (cualquier vendedor), con historial real de compra.</p>
+
+          @if (clientesEnRiesgo().length) {
+            <div class="space-y-2 flex-1">
+              @for (c of clientesEnRiesgo(); track c.ruc) {
+                <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5 text-xs">
+                  <div class="min-w-0 pr-2">
+                    <span class="font-bold text-slate-900 block truncate">{{ c.cliente }}</span>
+                    <span class="text-slate-400 text-[10px]">{{ c.departamento }} · {{ c.dias_desde_ultima_compra }} días sin comprar</span>
+                  </div>
+                  <strong class="text-[#0d3393] font-bold whitespace-nowrap">S/ {{ c.total_soles_historico | number:'1.0-0' }}</strong>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="text-xs text-slate-400 text-center py-8">Sin clientes en riesgo por ahora.</p>
+          }
+        </div>
+      </div>
+
       <!-- Bloqueado hasta Fase 2: margen y consumo por línea/categoría -->
       <div class="rounded-2xl bg-slate-50 p-5 border border-dashed border-slate-300 flex items-center gap-3">
         <i class="fa-solid fa-lock text-slate-400 text-lg"></i>
@@ -178,31 +280,53 @@ import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
         </div>
       </div>
 
-      <!-- Executive Insights Section (SIMULADO -- ver nota) -->
+      <!-- Executive Insights Section -- generados por el AI Service una vez
+           por período (ver insights.py), no en cada visita. -->
       <div class="space-y-4 pt-2">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
               <i class="fa-solid fa-sparkles text-amber-500"></i>
-              Insights Estratégicos Detectados
+              Oportunidades de Mejora Detectadas por IA
             </h2>
             <p class="text-xs text-slate-500">
-              Análisis automatizado de oportunidades comerciales, márgenes y alertas operativas.
+              Se actualizan automáticamente el 1° de cada mes; puedes forzar una actualización cuando quieras.
             </p>
           </div>
-          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full">
-            Simulado — aún no conectado a un motor de insights real
-          </span>
+          <div class="flex items-center gap-2 shrink-0">
+            @if (insights().length) {
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                Generado: {{ insights()[0].date }}
+              </span>
+            }
+            <button
+              type="button"
+              (click)="actualizarInsights()"
+              [disabled]="actualizandoInsights()"
+              class="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-700 px-3 py-1.5 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5"
+            >
+              <i class="fa-solid fa-arrows-rotate text-[#0d3393]" [class.fa-spin]="actualizandoInsights()"></i>
+              <span>{{ actualizandoInsights() ? 'Actualizando...' : 'Actualizar ahora' }}</span>
+            </button>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          @for (insight of insights(); track insight.id) {
-            <app-insight-card
-              [insight]="insight"
-              (askAi)="navigateToChat($event)"
-            ></app-insight-card>
-          }
-        </div>
+        @if (errorInsights()) {
+          <p class="text-xs text-rose-500">No se pudieron cargar las oportunidades ({{ errorInsights() }}).</p>
+        } @else if (!insights().length) {
+          <p class="text-xs text-slate-400 text-center py-8 bg-white rounded-2xl border border-slate-200">
+            Aún no se generaron oportunidades para este período. Usa "Actualizar ahora" para generarlas.
+          </p>
+        } @else {
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            @for (insight of insights(); track insight.id) {
+              <app-insight-card
+                [insight]="insight"
+                (verDetalle)="chatService.mostrarInsight($event)"
+              ></app-insight-card>
+            }
+          </div>
+        }
       </div>
     </div>
   `
@@ -210,18 +334,36 @@ import { PrediccionProximoMes } from '../../../../core/models/prediccion.model';
 export class GerenciaDashboardComponent {
   private readonly dataService = inject(GerenciaDataService);
   private readonly reportingService = inject(ReportingService);
-  private readonly chatService = inject(GerenciaChatService);
+  protected readonly chatService = inject(GerenciaChatService);
   private readonly prediccionService = inject(PrediccionService);
   private readonly router = inject(Router);
 
-  // Insights: sigue siendo contenido simulado (no hay todavía un motor de
-  // IA que genere estos hallazgos sobre datos reales) -- ver badge "Simulado"
-  // en el template. Documentación empresarial (getBusinessDocuments) tampoco
-  // se toca acá, es una feature aparte (RAG futuro, ver README).
+  // Insights: reales, generados por el AI Service una vez por período (ver
+  // insights.py) -- este componente solo los lee/dispara su regeneración,
+  // nunca llama al LLM directamente. Documentación empresarial
+  // (getBusinessDocuments) no se toca acá, es una feature aparte (RAG
+  // futuro, ver README).
   protected readonly insights = signal<InsightCard[]>([]);
+  protected readonly errorInsights = signal<string | null>(null);
+  protected readonly actualizandoInsights = signal<boolean>(false);
 
   protected readonly prediccion = signal<PrediccionProximoMes | null>(null);
   protected readonly errorPrediccion = signal<string | null>(null);
+
+  // Productos con mayor caída proyectada (ML) -- ver nota en
+  // intelligence/ml/service/main.py sobre por qué no se muestra "crecimiento"
+  // (el ranking de crecimiento es poco confiable para productos de bajo
+  // volumen reciente y arrastra líneas que no son productos reales, ej.
+  // "VENTA DE CAMIONETA"; la caída sí es consistente y accionable).
+  protected readonly productosCaidaProyectada = signal<ProductoProyectado[]>([]);
+  protected readonly errorProductosProyectados = signal<string | null>(null);
+
+  // Clientes en riesgo de inactividad, a nivel empresa (backend/reporting,
+  // /gerencia/clientes-en-riesgo) -- mismo criterio que la reactivación del
+  // vendedor individual, agregado.
+  protected readonly clientesEnRiesgo = signal<ClienteEnRiesgo[]>([]);
+  protected readonly totalClientesEnRiesgo = signal<number>(0);
+  protected readonly montoEnRiesgo = signal<number>(0);
 
   // ============================================================
   // Reporte gerencial (backend/reporting, /gerencia/*) -- reemplaza los
@@ -294,6 +436,18 @@ export class GerenciaDashboardComponent {
         comparisonLabel: ticketCambio.tipo === 'neutral' ? 'sin comparación disponible' : 'vs mes anterior',
         icon: 'fa-solid fa-receipt',
         colorTheme: 'amber'
+      },
+      {
+        id: 'kpi-clientes-en-riesgo',
+        title: 'Clientes en Riesgo de Inactividad',
+        value: `${this.totalClientesEnRiesgo()}`,
+        subtitle: `S/ ${this.formatoMiles(this.montoEnRiesgo())} en historial de compra en juego`,
+        numericValue: this.totalClientesEnRiesgo(),
+        changePercent: 0,
+        changeType: 'neutral',
+        comparisonLabel: '30-50 días sin comprar, toda la empresa',
+        icon: 'fa-solid fa-user-clock',
+        colorTheme: 'red'
       }
     ];
   });
@@ -367,6 +521,14 @@ export class GerenciaDashboardComponent {
 
   constructor() {
     this.cargarTodo();
+
+    // Mantiene al chat de gerencia al tanto de lo que se está viendo en este
+    // dashboard ahora mismo (ver GerenciaChatService.setDashboardContext) --
+    // se re-ejecuta solo cuando cambia algo que efectivamente se lee acá
+    // adentro, no en cada render.
+    effect(() => {
+      this.chatService.setDashboardContext(this.buildContextoTexto());
+    });
   }
 
   protected mesAnterior() {
@@ -380,8 +542,14 @@ export class GerenciaDashboardComponent {
   }
 
   protected navigateToChat(prompt: string) {
-    this.chatService.sendMessage(prompt);
-    this.router.navigate(['/gerencia/chat']);
+    this.chatService.submitQuery(prompt);
+  }
+
+  /** Botón "explicar" de cada tarjeta -- ver effect() del constructor: el
+   * contexto del dashboard ya viaja antepuesto, acá solo hace falta decir
+   * QUÉ tarjeta se está preguntando. */
+  protected explicarCarta(nombreTarjeta: string) {
+    this.chatService.submitQuery(`Explícame la tarjeta "${nombreTarjeta}" que estoy viendo en el dashboard.`);
   }
 
   private moverMes(delta: number) {
@@ -407,7 +575,32 @@ export class GerenciaDashboardComponent {
       this.cargandoReporte.set(false);
     }
     this.cargarPrediccion();
-    this.dataService.getExecutiveInsights().subscribe((data) => this.insights.set(data));
+    this.cargarProductosProyectados();
+    this.cargarClientesEnRiesgo();
+    this.cargarInsights();
+  }
+
+  private cargarInsights() {
+    this.errorInsights.set(null);
+    this.dataService.getExecutiveInsights().subscribe({
+      next: (data) => this.insights.set(data),
+      error: (err) => this.errorInsights.set(err?.status ? `HTTP ${err.status}` : 'sin conexión')
+    });
+  }
+
+  protected actualizarInsights() {
+    this.actualizandoInsights.set(true);
+    this.errorInsights.set(null);
+    this.dataService.regenerarInsights().subscribe({
+      next: (data) => {
+        this.insights.set(data);
+        this.actualizandoInsights.set(false);
+      },
+      error: (err) => {
+        this.errorInsights.set(err?.status ? `HTTP ${err.status}` : 'sin conexión');
+        this.actualizandoInsights.set(false);
+      }
+    });
   }
 
   /** Recarga todo lo que depende de anio/mes (KPIs, top productos/clientes, mapa). */
@@ -463,6 +656,25 @@ export class GerenciaDashboardComponent {
     });
   }
 
+  private cargarProductosProyectados() {
+    this.prediccionService.getProductosProyectados(30, 6).subscribe({
+      next: (res) => this.productosCaidaProyectada.set(res.mayor_caida_proyectada),
+      error: (err) => this.errorProductosProyectados.set(err?.status ? `HTTP ${err.status}` : 'sin conexión')
+    });
+  }
+
+  private async cargarClientesEnRiesgo() {
+    try {
+      const res = await this.reportingService.getClientesEnRiesgoGerencia(6);
+      this.clientesEnRiesgo.set(res.clientes);
+      this.totalClientesEnRiesgo.set(res.total_clientes_en_riesgo);
+      this.montoEnRiesgo.set(res.monto_en_riesgo_soles);
+    } catch {
+      // Silencioso: no es el reporte principal del dashboard, no vale la pena
+      // un banner de error propio -- el KPI simplemente queda en 0.
+    }
+  }
+
   private mesAnteriorDe(anio: number, mes: number): { anio: number; mes: number } | null {
     if (mes === 1) return { anio: anio - 1, mes: 12 };
     return { anio, mes: mes - 1 };
@@ -493,5 +705,60 @@ export class GerenciaDashboardComponent {
 
   private truncar(texto: string, max: number): string {
     return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
+  }
+
+  /**
+   * Resumen en texto plano de lo que gerencia está viendo AHORA en este
+   * dashboard -- se le pasa al AI Service como contexto de cada pregunta
+   * (ver GerenciaChatService.setDashboardContext). Deliberadamente compacto
+   * (listas, no prosa) para no inflar el prompt de más.
+   */
+  private buildContextoTexto(): string {
+    const lineas: string[] = [`Período visible: ${this.periodoLabel()}.`];
+
+    const kpisActuales = this.kpis();
+    if (kpisActuales.length) {
+      lineas.push('KPIs:');
+      for (const kpi of kpisActuales) {
+        lineas.push(`- ${kpi.title}: ${kpi.value}${kpi.subtitle ? ` (${kpi.subtitle})` : ''}`);
+      }
+    }
+
+    if (this.prediccion()) {
+      const p = this.prediccion()!;
+      lineas.push(
+        `Predicción ML próximo mes: S/ ${p.prediccion_total_soles.toLocaleString('es-PE')} ` +
+        `(datos reales hasta ${p.fecha_datos_hasta}, modelo Random Forest v${p.modelo_version}).`
+      );
+    }
+
+    if (this.topProductos().length) {
+      const top3 = this.topProductos().slice(0, 3).map((p) => `${p.producto} (S/ ${Math.round(p.total_soles)})`);
+      lineas.push(`Top productos del mes: ${top3.join(', ')}.`);
+    }
+
+    if (this.departamentos().length) {
+      const top3 = this.departamentos().slice(0, 3).map((d) => `${d.departamento} (S/ ${Math.round(d.total_soles)})`);
+      lineas.push(`Top departamentos por ventas: ${top3.join(', ')}.`);
+    }
+
+    if (this.topClientes().length) {
+      const top3 = this.topClientes().slice(0, 3).map((c) => c.cliente);
+      lineas.push(`Clientes que más consumen: ${top3.join(', ')}.`);
+    }
+
+    if (this.productosCaidaProyectada().length) {
+      const top3 = this.productosCaidaProyectada().slice(0, 3).map((p) => `${p.producto} (${p.cambio_pct}%)`);
+      lineas.push(`Productos con caída proyectada (ML): ${top3.join(', ')}.`);
+    }
+
+    if (this.totalClientesEnRiesgo() > 0) {
+      lineas.push(
+        `Clientes en riesgo de inactividad: ${this.totalClientesEnRiesgo()} en total, ` +
+        `S/ ${Math.round(this.montoEnRiesgo())} en historial de compra en juego.`
+      );
+    }
+
+    return lineas.join('\n');
   }
 }

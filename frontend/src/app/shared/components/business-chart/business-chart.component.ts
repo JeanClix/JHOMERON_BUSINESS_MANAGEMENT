@@ -1,9 +1,11 @@
 import {
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
   OnDestroy,
+  Output,
   AfterViewInit,
   ViewChild,
   SimpleChanges
@@ -26,9 +28,21 @@ Chart.register(...registerables);
             <span class="h-2 w-2 rounded-full bg-[#0d3393]"></span>
             {{ chartData?.title || title }}
           </h3>
-          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-            {{ chartType | uppercase }}
-          </span>
+          <div class="flex items-center gap-1.5 shrink-0">
+            @if (explainable) {
+              <button
+                type="button"
+                (click)="explain.emit()"
+                title="Preguntarle a la IA sobre este gráfico"
+                class="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-[#0d3393] hover:text-white transition-colors"
+              >
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+              </button>
+            }
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+              {{ chartType | uppercase }}
+            </span>
+          </div>
         </div>
         
         @if (chartData?.subtitle || subtitle) {
@@ -63,6 +77,8 @@ export class BusinessChartComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() options: any = {};
   @Input() height: string = '240px';
   @Input() summaryNote?: string;
+  @Input() explainable = false;
+  @Output() explain = new EventEmitter<void>();
 
   private chartInstance?: Chart;
 

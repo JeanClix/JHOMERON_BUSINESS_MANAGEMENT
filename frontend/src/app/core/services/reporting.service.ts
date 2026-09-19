@@ -5,6 +5,7 @@ import { REPORTING_SERVICE_BASE_URL } from '../config/reporting-service.config';
 import { AuthService } from './auth.service';
 import {
   ClientesCarteraResponse,
+  ClientesEnRiesgoResponse,
   ClientesInactivosResponse,
   CuotaVendedor,
   MapaDepartamentosResponse,
@@ -175,6 +176,16 @@ export class ReportingService {
     }
     return firstValueFrom(
       this.http.get<MapaDepartamentosResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/mapa-departamentos`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getClientesEnRiesgoGerencia(limite = 8): Promise<ClientesEnRiesgoResponse> {
+    const params = new HttpParams().set('limite', limite);
+    return firstValueFrom(
+      this.http.get<ClientesEnRiesgoResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/clientes-en-riesgo`, {
         params,
         headers: this.authHeaders()
       })

@@ -1,13 +1,12 @@
 import { Component, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 
 
 @Component({
   selector: 'app-gerencia-header',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule],
   template: `
     <header class="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white px-4 md:px-8 shadow-2xs">
       <!-- Left: Mobile menu button & Breadcrumb -->
@@ -36,14 +35,6 @@ import { AuthService } from '../../../core/services/auth.service';
           <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>Planta & Ventas Operativas (100%)</span>
         </div>
-
-        <a
-          routerLink="/ventas"
-          class="hidden sm:flex items-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-1.5 text-xs font-bold transition-colors"
-        >
-          <i class="fa-solid fa-store text-[#0d3393]"></i>
-          <span>Ir a Ventas</span>
-        </a>
 
         <!-- User Profile Avatar & Logout -->
         <div class="flex items-center gap-2.5 pl-3 border-l border-slate-200">

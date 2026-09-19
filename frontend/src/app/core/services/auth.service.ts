@@ -63,6 +63,7 @@ export class AuthService {
           roleLabel: res.role,
           title: res.description || 'Usuario del sistema',
           area: res.area || 'General',
+          location: res.location || '',
           avatarInitials: res.name ? res.name.charAt(0).toUpperCase() : 'U',
           token: res.token
        };

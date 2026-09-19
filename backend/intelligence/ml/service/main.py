@@ -98,11 +98,15 @@ def cargar_modelo_produccion():
 
 
 def contexto_por_producto(fecha_hasta: date, ventana_dias: int = 30) -> pd.DataFrame:
-    """Ventas reales agregadas por producto en [fecha_hasta - ventana_dias, fecha_hasta)."""
+    """Ventas reales agregadas por producto en [fecha_hasta - ventana_dias, fecha_hasta).
+
+    `producto` (descripción) se trae solo para poder mostrarla en reportes --
+    el modelo nunca la usa como feature, solo `codigo_producto` identifica la fila."""
     database_url = os.environ["DATABASE_URL"]
     query = """
         SELECT
             codigo_producto,
+            MAX(producto) AS producto,
             SUM(total_soles) FILTER (WHERE fecha > %(hasta)s::date - (7 * INTERVAL '1 day')) AS ventas_ultimos_7_dias,
             SUM(total_soles) AS ventas_ultimos_30_dias,
             AVG(valor_unitario) AS precio_promedio,
@@ -114,6 +118,7 @@ def contexto_por_producto(fecha_hasta: date, ventana_dias: int = 30) -> pd.DataF
     """
     with psycopg.connect(database_url) as conn:
         df = pd.read_sql(query, conn, params={"hasta": fecha_hasta, "dias": ventana_dias})
+    df["producto"] = df["producto"].fillna(df["codigo_producto"])
     return df.fillna(0)
 
 
@@ -126,11 +131,13 @@ def ventas_reales_en_ventana(fecha_desde: date, fecha_hasta: date) -> float:
             return float(cur.fetchone()[0])
 
 
-def predecir_ventana(modelo, contexto: pd.DataFrame, fecha_inicio: date, dias: int) -> float:
-    """Suma las predicciones diarias del modelo para [fecha_inicio, fecha_inicio+dias),
-    usando el mismo contexto (fijo) de productos para todos los días."""
+def predecir_ventana_por_producto(modelo, contexto: pd.DataFrame, fecha_inicio: date, dias: int) -> pd.Series:
+    """Predicciones diarias del modelo para [fecha_inicio, fecha_inicio+dias),
+    usando el mismo contexto (fijo) de productos para todos los días -- sin
+    colapsar a un total, para poder ver qué productos empujan la predicción.
+    Indexado por codigo_producto."""
     if contexto.empty:
-        return 0.0
+        return pd.Series(dtype=float)
 
     filas_por_dia = []
     for offset in range(dias):
@@ -151,8 +158,13 @@ def predecir_ventana(modelo, contexto: pd.DataFrame, fecha_inicio: date, dias: i
     X = pd.concat([X, pd.get_dummies(df_infer["temporada"], prefix="temp")], axis=1)
     X = X.reindex(columns=modelo.feature_names_in_, fill_value=0)
 
-    predicciones = np.clip(modelo.predict(X), 0, None)
-    return float(predicciones.sum())
+    df_infer["prediccion"] = np.clip(modelo.predict(X), 0, None)
+    return df_infer.groupby("codigo_producto")["prediccion"].sum()
+
+
+def predecir_ventana(modelo, contexto: pd.DataFrame, fecha_inicio: date, dias: int) -> float:
+    """Suma total de la ventana -- ver predecir_ventana_por_producto para el detalle."""
+    return float(predecir_ventana_por_producto(modelo, contexto, fecha_inicio, dias).sum())
 
 
 def calibrar_con_backtest(modelo, dias: int, fecha_referencia: date) -> dict:
@@ -227,4 +239,82 @@ def predecir_proximo_mes(dias: int = 30):
         "metodo": "suma de predicciones diarias por producto activo (contexto reciente fijo, calendario variable), "
                   "calibrada con backtest sobre el último periodo conocido, anclada a la última fecha real de datos",
         "backtest": backtest,
+    }
+
+
+# Debajo de este piso de ventas (en el equivalente de 30 días) el % de cambio
+# es ruido puro (ej. 1 sol -> 5 soles = +400%) -- se excluye del ranking de
+# crecimiento/caída, aunque sigue contando en "productos_considerados".
+_PISO_VENTAS_RANKING_SOLES = 100.0
+
+
+@app.get("/predict/productos")
+def predecir_productos(dias: int = 30, top: int = 8):
+    """Desglosa la predicción de /predict/proximo-mes por producto -- el modelo
+    ya la calcula internamente (ver predecir_ventana_por_producto), acá solo se
+    expone sin colapsarla a un total. Compara la predicción calibrada contra el
+    nivel real de los últimos 30 días (normalizado a `dias`) para identificar
+    qué productos empujan el crecimiento o la caída proyectada."""
+    if dias < 1 or dias > 90:
+        raise HTTPException(status_code=400, detail="'dias' debe estar entre 1 y 90")
+    if top < 1 or top > 50:
+        raise HTTPException(status_code=400, detail="'top' debe estar entre 1 y 50")
+
+    modelo, version = cargar_modelo_produccion()
+    fecha_datos = obtener_ultima_fecha_real()
+
+    contexto_actual = contexto_por_producto(fecha_hasta=fecha_datos, ventana_dias=30)
+    if contexto_actual.empty:
+        return {
+            "periodo_dias": dias,
+            "fecha_datos_hasta": fecha_datos.isoformat(),
+            "productos_considerados": 0,
+            "mayor_crecimiento_proyectado": [],
+            "mayor_caida_proyectada": [],
+            "nota": "Sin ventas en los 30 días previos a la última fecha con datos; no hay contexto para proyectar.",
+        }
+
+    prediccion_por_producto = predecir_ventana_por_producto(
+        modelo, contexto_actual, fecha_datos + timedelta(days=1), dias
+    )
+    backtest = calibrar_con_backtest(modelo, dias, fecha_referencia=fecha_datos)
+    factor = backtest["factor_calibracion"]
+
+    contexto_idx = contexto_actual.set_index("codigo_producto")
+    filas = []
+    for codigo, prediccion in prediccion_por_producto.items():
+        fila_contexto = contexto_idx.loc[codigo]
+        # Normalizado a la misma cantidad de días que se está prediciendo, para
+        # comparar manzanas con manzanas si `dias` != 30.
+        actual_equivalente = float(fila_contexto["ventas_ultimos_30_dias"]) / 30.0 * dias
+        prediccion_calibrada = float(prediccion) * factor
+
+        cambio_pct = None
+        if actual_equivalente >= _PISO_VENTAS_RANKING_SOLES:
+            cambio_pct = round(((prediccion_calibrada - actual_equivalente) / actual_equivalente) * 100, 1)
+
+        filas.append({
+            "codigo_producto": codigo,
+            "producto": fila_contexto["producto"],
+            "ventas_actuales_soles": round(actual_equivalente, 2),
+            "prediccion_soles": round(prediccion_calibrada, 2),
+            "cambio_pct": cambio_pct,
+        })
+
+    con_cambio = [f for f in filas if f["cambio_pct"] is not None]
+    mayor_crecimiento = sorted(con_cambio, key=lambda f: f["cambio_pct"], reverse=True)[:top]
+    mayor_caida = sorted(con_cambio, key=lambda f: f["cambio_pct"])[:top]
+
+    return {
+        "periodo_dias": dias,
+        "periodo_prediccion": f"{(fecha_datos + timedelta(days=1)).isoformat()} -> {(fecha_datos + timedelta(days=dias)).isoformat()}",
+        "fecha_datos_hasta": fecha_datos.isoformat(),
+        "modelo_nombre": MODEL_NAME,
+        "modelo_version": version,
+        "factor_calibracion": factor,
+        "productos_considerados": len(filas),
+        "productos_evaluados_en_ranking": len(con_cambio),
+        "piso_ventas_ranking_soles": _PISO_VENTAS_RANKING_SOLES,
+        "mayor_crecimiento_proyectado": mayor_crecimiento,
+        "mayor_caida_proyectada": mayor_caida,
     }

@@ -1,11 +1,12 @@
 import { Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatMessage } from '../../../../core/models/chat.model';
+import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
 
 @Component({
   selector: 'app-chat-message',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MarkdownPipe],
   template: `
     <div [class]="'flex gap-3 text-xs mb-4 ' + (message().sender === 'user' ? 'flex-row-reverse' : 'flex-row')">
       <!-- Avatar -->
@@ -30,9 +31,7 @@ import { ChatMessage } from '../../../../core/models/chat.model';
         </div>
 
         <!-- Content formatted -->
-        <div class="whitespace-pre-wrap leading-relaxed font-sans prose prose-slate max-w-none">
-          {{ message().content }}
-        </div>
+        <div class="leading-relaxed font-sans prose prose-sm prose-slate max-w-none prose-table:text-xs prose-th:bg-slate-50" [innerHTML]="message().content | markdown"></div>
 
         <!-- Key Data Points Badges -->
         @if (message().keyDataPoints?.length) {

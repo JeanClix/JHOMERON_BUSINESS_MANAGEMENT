@@ -9,6 +9,8 @@ export interface User {
   roleLabel: string;
   title: string;
   area: string;
+  /** "Lima" o "Provincia: <departamentos>" (ver User.location en el panel admin). */
+  location: string;
   avatarInitials: string;
   /**
    * JWT emitido por backend/admin (POST /api/auth/login). Se reenvia como
