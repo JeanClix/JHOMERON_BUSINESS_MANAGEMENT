@@ -26,7 +26,13 @@ export interface VentaDia {
   dia_nombre: string;
   dia_semana: number;
   total_soles: number;
+  // Unidades de producto vendidas (SUM de fact_ventas.cantidad) -- NO es la
+  // cantidad de líneas de venta, ver `numero_lineas`.
   cantidad: number;
+  // Cantidad de líneas de venta (COUNT(*) de fact_ventas): cada fila es un
+  // producto dentro de una factura/documento SAP. Es lo que muestra la KPI
+  // "Líneas de Venta" del dashboard -- no confundir con `cantidad` (unidades).
+  numero_lineas: number;
 }
 
 export type PeriodoModo = 'mes' | 'semana';
@@ -66,6 +72,10 @@ export interface ClienteInactivo {
   dias_desde_ultima_compra: number;
   compras_mes_actual: number;
   compras_anio_actual: number;
+  // Compras históricas totales (todo el tiempo) con este vendedor -- filtro
+  // mínimo para no marcar como "candidato a reactivación" a un cliente con
+  // una compra aislada (ver backend/reporting/src/routers/vendedores.py).
+  compras_historicas: number;
   total_soles_historico: number;
 }
 
@@ -73,6 +83,21 @@ export interface ClientesInactivosResponse {
   vendedor: string;
   dias_umbral: number;
   clientes: ClienteInactivo[];
+}
+
+export interface ClienteCartera {
+  cliente: string;
+  ruc: string;
+  departamento: string;
+  ultima_compra: string;
+  dias_desde_ultima_compra: number;
+  compras_historicas: number;
+  total_soles_historico: number;
+}
+
+export interface ClientesCarteraResponse {
+  vendedor: string;
+  clientes: ClienteCartera[];
 }
 
 /**

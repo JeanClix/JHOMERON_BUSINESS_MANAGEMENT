@@ -23,7 +23,11 @@ CREATE TABLE IF NOT EXISTS usuarios (
   -- dwh.dim_vendedor.empleado_venta para ese vendedor -- es el unico join
   -- posible hoy entre "quien inicio sesion" y "de quien son estas ventas".
   -- Cuando el batch extraiga SlpCode, esto se reemplaza por un codigo real.
-  vendedor_nombre_sap VARCHAR(150)
+  vendedor_nombre_sap VARCHAR(150),
+  -- Un vendedor que ya no trabaja se marca inactivo, nunca se borra -- borrar
+  -- el registro perdería la trazabilidad de "quien vendió esto" en el panel,
+  -- aunque dwh.fact_ventas ya no dependa de este id.
+  activo BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS telemetria_ia (

@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { REPORTING_SERVICE_BASE_URL } from '../config/reporting-service.config';
 import { AuthService } from './auth.service';
 import {
+  ClientesCarteraResponse,
   ClientesInactivosResponse,
   CuotaVendedor,
   MapaDepartamentosResponse,
@@ -100,10 +101,20 @@ export class ReportingService {
     );
   }
 
-  getClientesInactivos(diasUmbral = 45, limite = 5): Promise<ClientesInactivosResponse> {
+  getClientesInactivos(diasUmbral = 30, limite = 5): Promise<ClientesInactivosResponse> {
     const params = new HttpParams().set('dias_umbral', diasUmbral).set('limite', limite);
     return firstValueFrom(
       this.http.get<ClientesInactivosResponse>(`${REPORTING_SERVICE_BASE_URL}/vendedores/me/clientes-inactivos`, {
+        params,
+        headers: this.authHeaders()
+      })
+    );
+  }
+
+  getClientesCartera(limite = 200): Promise<ClientesCarteraResponse> {
+    const params = new HttpParams().set('limite', limite);
+    return firstValueFrom(
+      this.http.get<ClientesCarteraResponse>(`${REPORTING_SERVICE_BASE_URL}/vendedores/me/clientes`, {
         params,
         headers: this.authHeaders()
       })

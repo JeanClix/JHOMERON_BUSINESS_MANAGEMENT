@@ -11,3 +11,7 @@ intelligence/ai/.venv/
 
 # MLflow
 mlruns/
+
+# Artefactos de Python compilados (se regeneran al correr cada servicio)
+__pycache__/
+*.pyc

@@ -66,10 +66,38 @@ public class UserController {
         user.setDescription(body.get("description"));
         user.setArea(body.get("area"));
         user.setLocation(body.get("location"));
+        user.setActivo(true); // todo usuario nuevo arranca activo
         aplicarCamposVendedor(user, body);
 
         User guardado = userRepository.save(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(aRespuesta(guardado));
+    }
+
+    /**
+     * Actualiza meta_mensual y/o meta_semanal para TODOS los usuarios con
+     * role=VENDEDOR de una sola vez. Existe porque hoy la meta es la misma
+     * para todo el equipo -- sin esto, subir o bajar la meta general
+     * significaba editar vendedor por vendedor a mano.
+     */
+    @PutMapping("/meta-vendedores")
+    public ResponseEntity<?> actualizarMetaVendedores(@RequestBody Map<String, String> body) {
+        String metaMensualRaw = body.get("metaMensual");
+        String metaSemanalRaw = body.get("metaSemanal");
+        boolean sinMensual = metaMensualRaw == null || metaMensualRaw.isBlank();
+        boolean sinSemanal = metaSemanalRaw == null || metaSemanalRaw.isBlank();
+        if (sinMensual && sinSemanal) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Debes indicar metaMensual y/o metaSemanal"));
+        }
+
+        List<User> vendedores = userRepository.findByRole("VENDEDOR");
+        for (User v : vendedores) {
+            if (!sinMensual) v.setMetaMensual(new BigDecimal(metaMensualRaw));
+            if (!sinSemanal) v.setMetaSemanal(new BigDecimal(metaSemanalRaw));
+        }
+        userRepository.saveAll(vendedores);
+
+        return ResponseEntity.ok(Map.of("vendedoresActualizados", vendedores.size()));
     }
 
     @PutMapping("/{id}")
@@ -80,6 +108,7 @@ public class UserController {
             if (body.get("description") != null) user.setDescription(body.get("description"));
             if (body.get("area") != null) user.setArea(body.get("area"));
             if (body.get("location") != null) user.setLocation(body.get("location"));
+            if (body.get("activo") != null) user.setActivo(Boolean.parseBoolean(body.get("activo")));
             aplicarCamposVendedor(user, body);
             // Solo re-hashear si mandan una contraseña nueva (no vaciar la existente)
             if (body.get("password") != null && !body.get("password").isBlank()) {
@@ -108,6 +137,7 @@ public class UserController {
         m.put("area", user.getArea());
         m.put("location", user.getLocation());
         m.put("role", user.getRole());
+        m.put("activo", user.getActivo());
         m.put("metaMensual", user.getMetaMensual());
         m.put("metaSemanal", user.getMetaSemanal());
         m.put("vendedorNombreSap", user.getVendedorNombreSap());

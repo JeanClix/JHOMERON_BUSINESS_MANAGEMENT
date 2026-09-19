@@ -55,4 +55,11 @@ public class User {
     // Debe copiarse exacto al crear el vendedor desde el panel admin.
     @Column(name = "vendedor_nombre_sap", length = 150)
     private String vendedorNombreSap;
+
+    // Un vendedor que ya no trabaja se marca inactivo, NUNCA se borra --
+    // borrarlo perdería su historial de ventas (dwh.fact_ventas se une por
+    // vendedor_nombre_sap, no por este id, pero el registro de "quien fue"
+    // en este panel se pierde igual). AuthController rechaza login si es false.
+    @Column(name = "activo", nullable = false)
+    private Boolean activo = true;
 }

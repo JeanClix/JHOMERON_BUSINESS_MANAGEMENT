@@ -19,7 +19,7 @@ import { BusinessChartComponent } from '../../../../shared/components/business-c
       <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50/50">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#0d3393] to-[#0b2670] text-white shadow-xs">
-            <i class="fa-solid fa-robot text-sm"></i>
+            <i class="fa-solid fa-paint-roller text-sm"></i>
           </div>
           <div>
             <h3 class="text-sm font-extrabold text-slate-900 leading-tight">Asistente de Ventas Jhomeron AI</h3>
@@ -66,7 +66,7 @@ import { BusinessChartComponent } from '../../../../shared/components/business-c
           <div [class]="'flex gap-3 text-xs ' + (msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row')">
             <div [class]="'h-8 w-8 shrink-0 rounded-xl flex items-center justify-center font-bold text-xs shadow-xs ' +
               (msg.sender === 'user' ? 'bg-[#ef0606] text-white' : (msg.isError ? 'bg-rose-500 text-white' : 'bg-[#0d3393] text-white'))">
-              <i [class]="msg.sender === 'user' ? 'fa-solid fa-user-tie' : 'fa-solid fa-robot'"></i>
+              <i [class]="msg.sender === 'user' ? 'fa-solid fa-user-tie' : 'fa-solid fa-paint-roller'"></i>
             </div>
 
             <div [class]="'max-w-[85%] rounded-2xl p-4 shadow-xs space-y-3 ' +
@@ -104,7 +104,7 @@ import { BusinessChartComponent } from '../../../../shared/components/business-c
         @if (chatService.isLoading()) {
           <div class="flex items-center gap-3 text-xs text-slate-500 bg-white p-3.5 rounded-2xl border border-slate-200 w-fit shadow-2xs">
             <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0d3393] text-white">
-              <i class="fa-solid fa-robot text-xs animate-spin"></i>
+              <i class="fa-solid fa-paint-roller text-xs animate-pulse"></i>
             </div>
             <div class="flex items-center gap-1.5">
               <span class="font-bold text-[#0d3393]">Consultando el Data Warehouse</span>

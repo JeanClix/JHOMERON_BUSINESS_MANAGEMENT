@@ -128,34 +128,28 @@
                 </p>
               </div>
 
-              <!-- Tachito de pintura: se llena hasta el % de cumplimiento -->
+              <!-- Lata de pintura: rojo = 0% vendido, blanco = en camino, verde = meta cumplida -->
               <div class="flex flex-col items-center gap-2 shrink-0">
-                <div class="relative w-16 h-20">
+                <div class="relative w-20 h-24">
+                  <!-- Asa -->
+                  <div class="absolute -top-2 left-1/2 -translate-x-1/2 w-10 h-4 rounded-full border-[3px] border-white/50 border-b-0"></div>
+                  <!-- Tapa -->
+                  <div class="absolute top-1 left-1/2 -translate-x-1/2 w-[4.5rem] h-3.5 rounded-full bg-white/25 border-2 border-white/50 z-10"></div>
+                  <!-- Cuerpo de la lata: color sólido según el estado de cumplimiento -->
                   <div
-                    class="absolute top-0 left-1/2 -translate-x-1/2 w-9 h-3.5 rounded-t-full border-[3px] border-b-0 bg-white/10"
-                    [style.borderColor]="colorTachito()"
-                  ></div>
-                  <div
-                    class="absolute inset-x-0 bottom-0 top-3 rounded-b-xl border-[3px] overflow-hidden bg-white/10"
-                    [style.borderColor]="colorTachito()"
+                    class="absolute inset-x-0.5 top-3.5 bottom-0 rounded-b-xl rounded-t-sm border-2 border-white/40 flex items-center justify-center transition-colors duration-500 shadow-inner"
+                    [style.backgroundColor]="colorTachito()"
                   >
-                    <div
-                      class="absolute bottom-0 left-0 right-0 transition-all duration-700 ease-out"
-                      [style.height.%]="llenadoTachito()"
-                      [style.backgroundColor]="colorTachito()"
-                    ></div>
+                    <span class="text-xl font-black leading-none" [style.color]="colorTextoTachito()">
+                      @if (porcentajeCumplimiento() !== null) {
+                        {{ porcentajeCumplimiento() | number:'1.0-0' }}%
+                      } @else {
+                        —
+                      }
+                    </span>
                   </div>
                 </div>
-                <div class="text-center">
-                  <div class="text-lg font-black text-white">
-                    @if (porcentajeCumplimiento() !== null) {
-                      {{ porcentajeCumplimiento() | number:'1.0-1' }}%
-                    } @else {
-                      —
-                    }
-                  </div>
-                  <div class="text-[9px] text-slate-200 font-semibold uppercase tracking-wide">Cumplimiento</div>
-                </div>
+                <div class="text-[9px] text-slate-200 font-semibold uppercase tracking-wide">Cumplimiento</div>
               </div>
             </div>
 
@@ -188,16 +182,18 @@
               <div class="flex items-center gap-2">
                 <button
                   (click)="periodoAnterior()"
-                  class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors"
-                  title="Período anterior"
+                  [disabled]="!puedeAnterior()"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
+                  [title]="puedeAnterior() ? 'Período anterior' : 'No hay datos antes de este período'"
                 >
                   <i class="fa-solid fa-chevron-left text-xs fa-font-solid"></i>
                 </button>
-                <span class="text-xs font-bold text-slate-900 min-w-[11rem] text-center">{{ periodoLabel() }}</span>
+                <span class="text-xs font-bold text-slate-900 min-w-[13rem] text-center">{{ periodoLabel() }}</span>
                 <button
                   (click)="periodoSiguiente()"
-                  class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors"
-                  title="Período siguiente"
+                  [disabled]="!puedeSiguiente()"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
+                  [title]="puedeSiguiente() ? 'Período siguiente' : 'Ese período todavía no comienza'"
                 >
                   <i class="fa-solid fa-chevron-right text-xs fa-font-solid"></i>
                 </button>
@@ -224,9 +220,9 @@
               </div>
 
               <div class="rounded-xl bg-white p-5 border border-slate-200 shadow-sm space-y-2">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Transacciones</span>
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Líneas de Venta</span>
                 <div class="text-2xl font-extrabold text-[#ef0606]">{{ totalLineasPeriodo() | number:'1.0-0' }}</div>
-                <div class="text-xs text-slate-500 font-medium">Líneas vendidas en el período</div>
+                <div class="text-xs text-slate-500 font-medium">Productos vendidos en facturas/documentos del período</div>
               </div>
             </div>
 
@@ -270,7 +266,7 @@
                           <span class="font-bold text-slate-900 block truncate">{{ p.producto }}</span>
                           <span class="text-slate-400 font-mono text-[10px]">{{ p.codigo_producto }}</span>
                         </div>
-                        <strong class="text-[#0d3393] font-bold whitespace-nowrap">S/ {{ p.total_soles | number:'1.2-2' }}</strong>
+                        <strong class="text-[#0d3393] font-bold whitespace-nowrap">{{ p.cantidad | number:'1.0-2' }} uds.</strong>
                       </div>
                     }
                   </div>
@@ -305,44 +301,89 @@
           </div>
         }
 
-        <!-- CARTERA DE CLIENTES MODULE -->
+        <!-- CARTERA DE CLIENTES MODULE (datos reales: todos los clientes a los que este vendedor le ha vendido según SAP) -->
         @case ('clientes') {
           <div class="rounded-2xl bg-white p-6 border border-slate-200 shadow-sm space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-lg font-bold text-slate-900">Cartera de Clientes Asignados</h3>
-                <p class="text-xs text-slate-500">Contactos comerciales y líneas de crédito asignadas.</p>
-              </div>
-              <button class="rounded-lg bg-[#0d3393] px-3.5 py-2 text-xs font-bold text-white">
-                <i class="fa-solid fa-user-plus mr-1 fa-font-solid"></i> Nuevo Cliente
-              </button>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Cartera de Clientes</h3>
+              <p class="text-xs text-slate-500">Clientes a los que le has vendido alguna vez, según el Data Warehouse (no es una cartera asignada formal).</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div class="rounded-xl border border-slate-200 p-4 space-y-2 bg-slate-50">
-                <div class="flex justify-between items-center text-xs">
-                  <span class="font-bold text-[#0d3393]">Astillero Astimar SAC</span>
-                  <span class="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 font-bold text-[10px]">Crédito OK</span>
-                </div>
-                <p class="text-xs text-slate-600">Contacto: Ing. Manuel Varga (987 654 321)</p>
-                <div class="pt-2 border-t border-slate-200 text-xs flex justify-between">
-                  <span>Línea Crédito: S/ 30,000</span>
-                  <span class="font-bold text-slate-900">Usado: S/ 12,500</span>
-                </div>
+            @if (cargandoCartera()) {
+              <p class="text-xs text-slate-400 text-center py-8">
+                <i class="fa-solid fa-circle-notch fa-spin mr-1.5 fa-font-solid"></i> Cargando cartera...
+              </p>
+            } @else if (clientesCartera().length) {
+              <!-- Filtros -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input
+                  type="text"
+                  [ngModel]="filtroCarteraCliente()"
+                  (ngModelChange)="setFiltroCarteraCliente($event)"
+                  placeholder="Buscar por cliente..."
+                  class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
+                  [ngModel]="filtroCarteraRuc()"
+                  (ngModelChange)="setFiltroCarteraRuc($event)"
+                  placeholder="Buscar por RUC..."
+                  class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <select
+                  [ngModel]="filtroCarteraDepartamento()"
+                  (ngModelChange)="setFiltroCarteraDepartamento($event)"
+                  class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Todos los departamentos</option>
+                  @for (dep of departamentosCartera(); track dep) {
+                    <option [value]="dep">{{ dep }}</option>
+                  }
+                </select>
               </div>
 
-              <div class="rounded-xl border border-slate-200 p-4 space-y-2 bg-slate-50">
-                <div class="flex justify-between items-center text-xs">
-                  <span class="font-bold text-[#0d3393]">Pesquera del Sur S.A.</span>
-                  <span class="rounded bg-amber-100 text-amber-800 px-2 py-0.5 font-bold text-[10px]">Pendiente Pago</span>
+              @if (clientesCarteraFiltrados().length) {
+                <!-- Tarjetas -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  @for (c of clientesCarteraPagina(); track c.ruc) {
+                    <div class="rounded-xl border border-slate-200 p-4 bg-slate-50 space-y-1.5">
+                      <p class="text-xs font-bold text-[#0d3393] truncate" [title]="c.cliente">{{ c.cliente }}</p>
+                      <p class="text-[11px] text-slate-500 font-mono">RUC: {{ c.ruc }}</p>
+                      <p class="text-[11px] text-slate-500">
+                        <i class="fa-solid fa-map-pin text-slate-400 mr-1 fa-font-solid"></i>{{ c.departamento }}
+                      </p>
+                    </div>
+                  }
                 </div>
-                <p class="text-xs text-slate-600">Contacto: Lic. Teresa Ramos (912 345 678)</p>
-                <div class="pt-2 border-t border-slate-200 text-xs flex justify-between">
-                  <span>Línea Crédito: S/ 50,000</span>
-                  <span class="font-bold text-[#ef0606]">Usado: S/ 42,000</span>
+
+                <!-- Paginación -->
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <span class="text-[11px] text-slate-400">
+                    {{ clientesCarteraFiltrados().length }} cliente(s) · Página {{ paginaCartera() }} de {{ totalPaginasCartera() }}
+                  </span>
+                  <div class="flex items-center gap-2">
+                    <button
+                      (click)="paginaCarteraAnterior()"
+                      [disabled]="paginaCartera() <= 1"
+                      class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <i class="fa-solid fa-chevron-left text-xs fa-font-solid"></i>
+                    </button>
+                    <button
+                      (click)="paginaCarteraSiguiente()"
+                      [disabled]="paginaCartera() >= totalPaginasCartera()"
+                      class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <i class="fa-solid fa-chevron-right text-xs fa-font-solid"></i>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
+              } @else {
+                <p class="text-xs text-slate-400 text-center py-8">Ningún cliente coincide con el filtro.</p>
+              }
+            } @else {
+              <p class="text-xs text-slate-400 text-center py-8">Todavía no tienes clientes registrados en el Data Warehouse.</p>
+            }
           </div>
         }
 

@@ -35,6 +35,12 @@ public class AuthController {
 
         User user = userRepository.findByUsername(username);
 
+        if (user != null && Boolean.FALSE.equals(user.getActivo())) {
+            // Se marca inactivo en vez de borrarse (ver User.java) -- se
+            // conserva su historial, pero ya no puede iniciar sesión.
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Usuario inactivo"));
+        }
+
         if (user != null && passwordEncoder.matches(password, user.getPassword())) {
             // Nunca devolver el hash de la contraseña al frontend
             Map<String, Object> body = new LinkedHashMap<>();

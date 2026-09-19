@@ -47,16 +47,16 @@ export class VentasAiChatService {
       prompt: '¿Cuáles son los 5 productos más vendidos por total en soles?'
     },
     {
-      id: 'p-por-departamento',
-      icon: 'fa-solid fa-map-location-dot',
-      label: 'Ventas por departamento',
-      prompt: '¿Cómo se distribuyen las ventas por departamento?'
+      id: 'p-tendencia',
+      icon: 'fa-solid fa-chart-area',
+      label: 'Tendencia de ventas',
+      prompt: '¿Cómo fue la tendencia de ventas en los últimos 6 meses?'
     },
     {
-      id: 'p-mejor-vendedor',
-      icon: 'fa-solid fa-medal',
-      label: 'Ranking de vendedores',
-      prompt: '¿Qué vendedor tuvo mayor monto de ventas?'
+      id: 'p-ticket-promedio',
+      icon: 'fa-solid fa-receipt',
+      label: 'Ticket promedio',
+      prompt: '¿Cuál es el ticket promedio por cliente este mes?'
     },
     {
       id: 'p-clientes-top',

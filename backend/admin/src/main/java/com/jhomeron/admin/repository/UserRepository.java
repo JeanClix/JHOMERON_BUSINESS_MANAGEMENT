@@ -10,4 +10,5 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 @RepositoryRestResource(collectionResourceRel = "users", path = "users", exported = false)
 public interface UserRepository extends JpaRepository<User, Long> {
     User findByUsername(String username);
+    java.util.List<User> findByRole(String role);
 }

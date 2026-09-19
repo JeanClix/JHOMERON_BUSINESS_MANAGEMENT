@@ -116,7 +116,7 @@ def ventas(
     with get_connection() as conn:
         filas = conn.execute(
             """
-            SELECT fecha, dia_nombre, dia_semana, total_soles, cantidad
+            SELECT fecha, dia_nombre, dia_semana, total_soles, cantidad, numero_lineas
             FROM bi.v_ventas_vendedor_dia
             WHERE vendedor = %s AND fecha BETWEEN %s AND %s
             ORDER BY fecha
@@ -145,12 +145,17 @@ def productos(
     limite: int = Query(default=10, le=50),
     vendedor: str = Depends(require_vendedor),
 ):
-    """Producto que mas/menos vendio el vendedor en el mes (ASC/DESC).
+    """Producto que mas/menos vendio el vendedor en el mes, por CANTIDAD
+    (unidades), no por monto en soles -- lo que importa acá es cuánto se
+    movió de cada producto, no su precio.
 
     PROXY de "linea de producto": dwh.dim_producto no tiene categoria real
     (OITB de SAP) todavia -- ver TODO.md y el comentario en
     bi.v_vendedor_producto_mes. Cuando el batch extraiga categoria, este
     endpoint se re-agrega por categoria en vez de por producto individual.
+
+    Se excluyen productos con cantidad=0: en "menos vendidos" un producto
+    con 0 unidades no es información útil (no se vendió, punto), es ruido.
     """
     direccion = "ASC" if orden == "asc" else "DESC"
     with get_connection() as conn:
@@ -158,8 +163,8 @@ def productos(
             f"""
             SELECT codigo_producto, producto, total_soles, cantidad
             FROM bi.v_vendedor_producto_mes
-            WHERE vendedor = %s AND anio = %s AND mes = %s
-            ORDER BY total_soles {direccion}
+            WHERE vendedor = %s AND anio = %s AND mes = %s AND cantidad > 0
+            ORDER BY cantidad {direccion}
             LIMIT %s
             """,
             (vendedor, anio, mes, limite),
@@ -171,20 +176,44 @@ def productos(
 @router.get("/clientes-inactivos")
 def clientes_inactivos(
     dias_umbral: int = Query(
-        default=45,
+        default=30,
         ge=1,
         description=(
             "Dias sin comprar (con ESTE vendedor) para considerar al cliente "
-            "candidato a reactivacion. Valor por defecto PROVISIONAL -- "
-            "pendiente de validar con el area de ventas cual es el umbral "
-            "real (ver README). Ajustable por query param mientras tanto."
+            "candidato a reactivacion. Definido con el area de ventas en 30 "
+            "dias. Ajustable por query param si se necesita otro corte."
         ),
+    ),
+    dias_umbral_max: int = Query(
+        default=50,
+        ge=1,
+        description=(
+            "Tope de dias sin comprar: mas alla de esto ya no es 'candidato a "
+            "reactivacion' (se considera cliente perdido, no un caso a "
+            "trabajar ahora) -- se deja de mostrar en esta lista."
+        ),
+    ),
+    compras_minimas: int = Query(
+        default=5,
+        ge=1,
+        description=(
+            "Compras historicas minimas (con ESTE vendedor) para considerar "
+            "al cliente. Un cliente con 1-2 compras aisladas no tiene un "
+            "patron de recompra que se pueda decir que 'se rompio' -- no es "
+            "un candidato real a reactivacion, solo ruido."
+        ),
+    ),
+    monto_minimo: float = Query(
+        default=1000,
+        ge=0,
+        description="Monto historico minimo en soles (con ESTE vendedor) para considerar al cliente relevante.",
     ),
     limite: int = Query(default=20, le=100),
     vendedor: str = Depends(require_vendedor),
 ):
     """Candidatos a reactivacion: clientes que le compraron a ESTE vendedor
-    alguna vez, pero llevan mas de `dias_umbral` dias sin volver a hacerlo.
+    alguna vez, con un historial real de compra (no un caso aislado), pero
+    llevan mas de `dias_umbral` dias sin volver a hacerlo.
 
     Devuelve el dato crudo (determinístico, auditable) -- el TEXTO de la
     recomendacion ("ofrecele X") lo genera el AI Service a partir de esta
@@ -200,16 +229,48 @@ def clientes_inactivos(
             """
             SELECT cliente, ruc, departamento, ultima_compra,
                    dias_desde_ultima_compra, compras_mes_actual,
-                   compras_anio_actual, total_soles_historico
+                   compras_anio_actual, compras_historicas, total_soles_historico
             FROM bi.v_cliente_frecuencia_vendedor
-            WHERE vendedor = %s AND dias_desde_ultima_compra >= %s
+            WHERE vendedor = %s
+              AND dias_desde_ultima_compra >= %s
+              AND dias_desde_ultima_compra <= %s
+              AND compras_historicas > %s
+              AND total_soles_historico > %s
             ORDER BY dias_desde_ultima_compra DESC
             LIMIT %s
             """,
-            (vendedor, dias_umbral, limite),
+            (vendedor, dias_umbral, dias_umbral_max, compras_minimas, monto_minimo, limite),
         ).fetchall()
 
     return {"vendedor": vendedor, "dias_umbral": dias_umbral, "clientes": filas}
+
+
+@router.get("/clientes")
+def clientes(
+    limite: int = Query(default=200, le=1000),
+    vendedor: str = Depends(require_vendedor),
+):
+    """Cartera de clientes del vendedor: TODOS los clientes a los que le ha
+    vendido alguna vez (dato real de SAP, no una cartera asignada formal --
+    ver nota en bi.v_cliente_frecuencia_vendedor). Base de la pestaña
+    "Cartera de Clientes" del dashboard, que antes mostraba datos de ejemplo
+    hardcodeados (línea de crédito, contacto) que no existen en el modelo
+    estrella hoy.
+    """
+    with get_connection() as conn:
+        filas = conn.execute(
+            """
+            SELECT cliente, ruc, departamento, ultima_compra,
+                   dias_desde_ultima_compra, compras_historicas, total_soles_historico
+            FROM bi.v_cliente_frecuencia_vendedor
+            WHERE vendedor = %s
+            ORDER BY total_soles_historico DESC
+            LIMIT %s
+            """,
+            (vendedor, limite),
+        ).fetchall()
+
+    return {"vendedor": vendedor, "clientes": filas}
 
 
 @router.get("/clientes-top-productos")

@@ -144,6 +144,11 @@ SELECT
     (CURRENT_DATE - MAX(t.fecha)) AS dias_desde_ultima_compra,
     COUNT(*) FILTER (WHERE t.fecha >= date_trunc('month', CURRENT_DATE)) AS compras_mes_actual,
     COUNT(*) FILTER (WHERE t.fecha >= date_trunc('year', CURRENT_DATE))  AS compras_anio_actual,
+    -- Compras históricas totales (todo el tiempo, no solo mes/año actual) --
+    -- usado en backend/reporting para exigir un mínimo de compras antes de
+    -- considerar a un cliente "candidato a reactivación" (un cliente con una
+    -- sola compra aislada no es un patrón de recompra roto, es un caso distinto).
+    COUNT(*) AS compras_historicas,
     SUM(f.total_venta_mn) AS total_soles_historico
 FROM dwh.fact_ventas f
 JOIN dwh.dim_tiempo t    ON f.fecha_id = t.fecha_id
