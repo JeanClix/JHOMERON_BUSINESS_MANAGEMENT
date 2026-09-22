@@ -76,6 +76,13 @@ export const routes: Routes = [
       {
         path: 'users/meta',
         loadComponent: () => import('./features/admin/users/meta-vendedores/meta-vendedores').then(m => m.MetaVendedores)
+      },
+      {
+        // Misma página que /gerencia/documentacion (montada dos veces, cada
+        // una dentro de su propio layout/sidebar) -- ver
+        // GerenciaDocumentacionComponent, que ya trae el CRUD de documentos.
+        path: 'documentos',
+        loadComponent: () => import('./features/gerencia/pages/documentacion/gerencia-documentacion.component').then(m => m.GerenciaDocumentacionComponent)
       }
     ]
   },

@@ -1,5 +1,9 @@
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { inject } from '@angular/core';
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 import { BusinessDocument } from '../../../../core/models/document.model';
 
 @Component({
@@ -16,17 +20,37 @@ import { BusinessDocument } from '../../../../core/models/document.model';
               <span class="text-xs font-bold uppercase tracking-wider text-[#0d3393] bg-[#0d3393]/10 px-2.5 py-1 rounded-md">
                 {{ document()!.categoryLabel }}
               </span>
-              <span class="text-xs text-slate-400 font-mono">v{{ document()!.version }}</span>
+              <span class="text-xs text-slate-400 font-mono">Actualizado: {{ document()!.version }}</span>
             </div>
 
-            <button
-              type="button"
-              (click)="onAskAi()"
-              class="rounded-xl bg-[#0d3393] hover:bg-[#0b2670] text-white px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs flex items-center gap-2"
-            >
-              <i class="fa-solid fa-robot text-xs"></i>
-              <span>Consultar IA sobre este doc</span>
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="editDoc.emit(document()!)"
+                class="rounded-xl bg-white border border-slate-200 hover:border-[#0d3393] hover:text-[#0d3393] text-slate-600 px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                <i class="fa-solid fa-pen text-xs"></i>
+                <span>Editar</span>
+              </button>
+              <button
+                type="button"
+                (click)="deactivateDoc.emit(document()!)"
+                class="rounded-xl bg-white border border-slate-200 hover:border-red-400 hover:text-red-600 text-slate-600 px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                <i class="fa-solid fa-trash text-xs"></i>
+                <span>Desactivar</span>
+              </button>
+              @if (mostrarBotonIA()) {
+                <button
+                  type="button"
+                  (click)="onAskAi()"
+                  class="rounded-xl bg-[#0d3393] hover:bg-[#0b2670] text-white px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs flex items-center gap-2"
+                >
+                  <i class="fa-solid fa-robot text-xs"></i>
+                  <span>Consultar IA sobre este doc</span>
+                </button>
+              }
+            </div>
           </div>
 
           <h2 class="text-xl md:text-2xl font-black text-slate-900 leading-tight">
@@ -81,10 +105,7 @@ import { BusinessDocument } from '../../../../core/models/document.model';
         }
 
         <!-- Formatted Document Content -->
-        <div class="prose prose-slate max-w-none text-xs leading-relaxed text-slate-700 space-y-4">
-          <div class="whitespace-pre-line font-sans">
-            {{ document()!.content }}
-          </div>
+        <div class="prose prose-slate max-w-none text-xs leading-relaxed text-slate-700 space-y-4" [innerHTML]="contenidoHtml()">
         </div>
       </div>
     } @else {
@@ -96,8 +117,29 @@ import { BusinessDocument } from '../../../../core/models/document.model';
   `
 })
 export class DocumentViewerComponent {
+  private readonly sanitizer = inject(DomSanitizer);
+
   document = input<BusinessDocument | null>(null);
+  // ADMIN llega a esta misma vista (ver gerencia-documentacion.component.ts,
+  // montada también en /admin/documentos) pero no tiene chat de IA -- ese
+  // botón navega a /gerencia/chat, ruta bloqueada para ADMIN por roleGuard.
+  mostrarBotonIA = input<boolean>(true);
   askAiAboutDoc = output<BusinessDocument>();
+  editDoc = output<BusinessDocument>();
+  deactivateDoc = output<BusinessDocument>();
+
+  // El contenido viene en markdown (ver rag.documento.contenido) -- se
+  // renderiza a HTML y se sanitiza con DOMPurify antes de insertarlo
+  // (defensa en profundidad: marked puede pasar HTML crudo tal cual si el
+  // markdown original lo trae, y este contenido lo sube gente de la
+  // empresa, no un sistema controlado). El sanitizer de Angular en
+  // [innerHTML] es una segunda capa, no la única.
+  protected contenidoHtml = computed<SafeHtml>(() => {
+    const contenido = this.document()?.content ?? '';
+    const html = marked.parse(contenido, { async: false }) as string;
+    const limpio = DOMPurify.sanitize(html);
+    return this.sanitizer.bypassSecurityTrustHtml(limpio);
+  });
 
   onAskAi() {
     if (this.document()) {

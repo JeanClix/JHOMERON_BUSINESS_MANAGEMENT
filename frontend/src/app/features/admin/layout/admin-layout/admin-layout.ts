@@ -21,6 +21,12 @@ export class AdminLayout {
           label: 'Usuarios',
           route: '/admin/users',
           icon: 'fa-solid fa-users',
+        },
+        {
+          id: 'documentos',
+          label: 'Documentos de Contexto',
+          route: '/admin/documentos',
+          icon: 'fa-solid fa-book-bookmark',
         }
       ]
     }
