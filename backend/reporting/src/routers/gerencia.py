@@ -36,23 +36,48 @@ router = APIRouter(prefix="/gerencia", tags=["gerencia"])
 @router.get("/top-clientes")
 def top_clientes(
     anio: int = Query(default_factory=lambda: date.today().year),
-    mes: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    mes: int | None = Query(default=None, ge=1, le=12),
     limite: int = Query(default=15, le=100),
     _claims: dict = Depends(require_gerencia),
 ):
-    """Clientes que compraron mas productos distintos en el mes, a nivel
-    de toda la empresa (sin distincion de vendedor)."""
+    """Clientes que compraron mas productos distintos, a nivel de toda la
+    empresa (sin distincion de vendedor). `mes` omitido = todo el anio.
+
+    NOTA sobre `productos_distintos` en modo anio: bi.v_cliente_productos_mes
+    solo trackea distintos POR MES -- sumar esas cuentas entre meses
+    sobrecontaria un producto comprado en mas de un mes. En su lugar se usa
+    MAX(productos_distintos) del mejor mes del cliente en el anio (una
+    aproximacion, no el conteo real de distintos en todo el anio) mientras
+    no exista una vista agregada a nivel anio; total_soles si es correcto
+    (aditivo) y es el criterio real de orden.
+    """
     with get_connection() as conn:
-        filas = conn.execute(
-            """
-            SELECT cliente, departamento, productos_distintos, total_soles
-            FROM bi.v_cliente_productos_mes
-            WHERE anio = %s AND mes = %s
-            ORDER BY productos_distintos DESC, total_soles DESC
-            LIMIT %s
-            """,
-            (anio, mes, limite),
-        ).fetchall()
+        if mes is not None:
+            filas = conn.execute(
+                """
+                SELECT cliente, departamento, productos_distintos, total_soles
+                FROM bi.v_cliente_productos_mes
+                WHERE anio = %s AND mes = %s
+                ORDER BY productos_distintos DESC, total_soles DESC
+                LIMIT %s
+                """,
+                (anio, mes, limite),
+            ).fetchall()
+        else:
+            filas = conn.execute(
+                """
+                SELECT cliente,
+                       MAX(departamento) AS departamento,
+                       MAX(productos_distintos) AS productos_distintos,
+                       SUM(total_soles) AS total_soles
+                FROM bi.v_cliente_productos_mes
+                WHERE anio = %s
+                GROUP BY cliente
+                ORDER BY total_soles DESC
+                LIMIT %s
+                """,
+                (anio, limite),
+            ).fetchall()
 
     return {"anio": anio, "mes": mes, "clientes": filas}
 
@@ -60,25 +85,40 @@ def top_clientes(
 @router.get("/top-productos")
 def top_productos(
     anio: int = Query(default_factory=lambda: date.today().year),
-    mes: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    mes: int | None = Query(default=None, ge=1, le=12),
     orden: str = Query(default="desc", pattern="^(asc|desc)$"),
     limite: int = Query(default=10, le=50),
     _claims: dict = Depends(require_gerencia),
 ):
     """Top Productos por Facturacion, a nivel de toda la empresa (sin
-    distincion de vendedor) -- ver bi.v_producto_mes."""
+    distincion de vendedor) -- ver bi.v_producto_mes. `mes` omitido = suma
+    de todo el anio (total_soles/cantidad son aditivos, sin aproximacion)."""
     direccion = "ASC" if orden == "asc" else "DESC"
     with get_connection() as conn:
-        filas = conn.execute(
-            f"""
-            SELECT codigo_producto, producto, total_soles, cantidad
-            FROM bi.v_producto_mes
-            WHERE anio = %s AND mes = %s
-            ORDER BY total_soles {direccion}
-            LIMIT %s
-            """,
-            (anio, mes, limite),
-        ).fetchall()
+        if mes is not None:
+            filas = conn.execute(
+                f"""
+                SELECT codigo_producto, producto, total_soles, cantidad
+                FROM bi.v_producto_mes
+                WHERE anio = %s AND mes = %s
+                ORDER BY total_soles {direccion}
+                LIMIT %s
+                """,
+                (anio, mes, limite),
+            ).fetchall()
+        else:
+            filas = conn.execute(
+                f"""
+                SELECT codigo_producto, MAX(producto) AS producto,
+                       SUM(total_soles) AS total_soles, SUM(cantidad) AS cantidad
+                FROM bi.v_producto_mes
+                WHERE anio = %s
+                GROUP BY codigo_producto
+                ORDER BY total_soles {direccion}
+                LIMIT %s
+                """,
+                (anio, limite),
+            ).fetchall()
 
     return {"anio": anio, "mes": mes, "orden": orden, "productos": filas}
 
@@ -86,22 +126,42 @@ def top_productos(
 @router.get("/ticket-promedio")
 def ticket_promedio(
     anio: int = Query(default_factory=lambda: date.today().year),
-    mes: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    mes: int | None = Query(default=None, ge=1, le=12),
     _claims: dict = Depends(require_gerencia),
 ):
-    """Ticket promedio por cliente en el mes: AVG(total_soles) agrupado por
-    cliente (no por factura -- fact_ventas no tiene un ID de factura
-    confiable, ver comentario en dwh.fact_ventas.linea). Reusa
-    bi.v_cliente_productos_mes en vez de crear una vista nueva."""
+    """Ticket promedio por cliente: AVG(total_soles) agrupado por cliente (no
+    por factura -- fact_ventas no tiene un ID de factura confiable, ver
+    comentario en dwh.fact_ventas.linea). Reusa bi.v_cliente_productos_mes en
+    vez de crear una vista nueva.
+
+    `mes` omitido = todo el anio: primero se suma el gasto de cada cliente en
+    los meses que compro (aditivo, correcto), y despues se promedia entre
+    clientes -- NO se promedian promedios mensuales entre si, eso subestima a
+    los clientes que compraron en mas de un mes.
+    """
     with get_connection() as conn:
-        fila = conn.execute(
-            """
-            SELECT AVG(total_soles) AS ticket_promedio, COUNT(*) AS clientes_activos
-            FROM bi.v_cliente_productos_mes
-            WHERE anio = %s AND mes = %s
-            """,
-            (anio, mes),
-        ).fetchone()
+        if mes is not None:
+            fila = conn.execute(
+                """
+                SELECT AVG(total_soles) AS ticket_promedio, COUNT(*) AS clientes_activos
+                FROM bi.v_cliente_productos_mes
+                WHERE anio = %s AND mes = %s
+                """,
+                (anio, mes),
+            ).fetchone()
+        else:
+            fila = conn.execute(
+                """
+                SELECT AVG(total_soles_cliente) AS ticket_promedio, COUNT(*) AS clientes_activos
+                FROM (
+                    SELECT cliente, SUM(total_soles) AS total_soles_cliente
+                    FROM bi.v_cliente_productos_mes
+                    WHERE anio = %s
+                    GROUP BY cliente
+                ) por_cliente
+                """,
+                (anio,),
+            ).fetchone()
 
     return {
         "anio": anio,

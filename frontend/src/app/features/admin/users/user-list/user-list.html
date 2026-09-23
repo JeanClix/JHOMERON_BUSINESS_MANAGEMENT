@@ -35,7 +35,6 @@
     <div class="flex space-x-3">
       <select class="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
         <option value="">Todos los Roles</option>
-        <option value="ADMIN">Admin</option>
         <option value="GERENCIA">Gerencia</option>
         <option value="VENDEDOR">Vendedor</option>
       </select>
@@ -57,7 +56,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          @for (user of users(); track user.id) {
+          @for (user of usuariosVisibles(); track user.id) {
             <tr class="hover:bg-slate-50 transition-colors group">
               <td class="px-6 py-4 font-medium text-slate-900">
                 {{ user.username }}

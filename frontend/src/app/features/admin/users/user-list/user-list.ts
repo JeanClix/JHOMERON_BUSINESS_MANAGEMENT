@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AdminUserService } from '../../../../core/services/admin-user.service';
@@ -16,6 +16,12 @@ export class UserList implements OnInit {
 
   users = signal<AdminUser[]>([]);
   errorMessage = signal<string | null>(null);
+
+  // El panel de administración es para gestionar Vendedores y Gerencia --
+  // la cuenta ADMIN (quien administra el sistema) no se lista ni se edita
+  // desde acá, ni se puede crear un nuevo usuario con ese rol (ver
+  // user-form.html: el select de rol ya no ofrece "Administrador").
+  protected readonly usuariosVisibles = computed(() => this.users().filter((u) => u.role !== 'ADMIN'));
 
   ngOnInit() {
     this.cargar();

@@ -2,8 +2,17 @@
  * Contrato con el AI Service (FastAPI, backend/intelligence/ai/src/main.py).
  * Mantener sincronizado con RespuestaResponse de ese servicio.
  */
+export interface AiChatHistorialMensaje {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface AiChatRequest {
   pregunta: string;
+  /** Mensajes previos de esta conversación (más viejo primero, sin incluir
+   * `pregunta`) -- ver comentario en agent.responder_pregunta del AI Service.
+   * Sin esto, el asistente no tiene memoria de lo que ya se habló. */
+  historial?: AiChatHistorialMensaje[];
 }
 
 export interface AiChatApiResponse {

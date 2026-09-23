@@ -120,7 +120,11 @@ export class UserForm implements OnInit {
       // Zona de venta solo aplica a VENDEDOR -- gerencia/admin ven toda la
       // empresa, no tiene sentido asignarles "Lima" por defecto.
       location: esVendedor ? this.construirLocation() : undefined,
-      description: valores.description || undefined,
+      // Nunca "|| undefined" acá: un string vacío es un valor válido (el
+      // admin borrando la descripción a propósito) -- si se manda undefined,
+      // Angular lo omite del JSON y el backend interpreta "no me mandaron
+      // este campo" en vez de "bórralo", y el valor viejo queda intacto.
+      description: valores.description ?? '',
       ...(this.editId() ? { activo: valores.activo ?? true } : {}),
       ...(esVendedor ? { vendedorNombreSap: valores.vendedorNombreSap?.trim() || undefined } : {}),
       ...(valores.password ? { password: valores.password } : {})

@@ -160,6 +160,30 @@ CREATE TABLE IF NOT EXISTS ai.insight_mensual (
 
 COMMENT ON TABLE ai.insight_mensual IS 'Oportunidades de mejora para gerencia, generadas una vez por periodo -- el dashboard lee de aca, no llama al LLM en cada visita.';
 
+-- Base de conocimiento institucional (Jhomeron como empresa: quien es,
+-- vision, mision, objetivos, politicas, testimonios, etc.) -- separada a
+-- proposito de ai.v_ventas*: esto NO es Data Warehouse de ventas, es
+-- contenido de texto libre que el LLM busca con buscar_base_conocimiento
+-- (ver tools.py) cuando la pregunta es sobre la empresa, no sobre cifras.
+-- Alta/edicion/baja: panel de Gerencia/Admin (ver
+-- backend/intelligence/ai/src/documentos.py). roles_visibles controla quien
+-- puede recibir ese documento como contexto en el chat (no quien lo administra
+-- -- eso ya requiere GERENCIA o ADMIN en el propio endpoint).
+CREATE TABLE IF NOT EXISTS ai.documento_contexto (
+    id BIGSERIAL PRIMARY KEY,
+    titulo TEXT NOT NULL,
+    categoria VARCHAR(30) NOT NULL DEFAULT 'general',
+    contenido TEXT NOT NULL,
+    formato_original VARCHAR(10) NOT NULL,
+    roles_visibles TEXT[] NOT NULL DEFAULT ARRAY['VENDEDOR', 'GERENCIA', 'ADMIN'],
+    subido_por VARCHAR(150),
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE ai.documento_contexto IS 'Base de conocimiento institucional (no ventas): documentos de texto libre que el chat busca por palabra clave para responder preguntas sobre la empresa.';
+
 -- ============================================================
 -- 3. Rol de solo lectura para el AI Service
 -- ============================================================
@@ -177,6 +201,11 @@ GRANT INSERT ON ai.consulta_log TO ai_readonly; -- solo para registrar auditorí
 GRANT USAGE, SELECT ON SEQUENCE ai.consulta_log_id_seq TO ai_readonly;
 GRANT SELECT, INSERT, DELETE ON ai.insight_mensual TO ai_readonly; -- DELETE solo para reemplazar el periodo al regenerar
 GRANT USAGE, SELECT ON SEQUENCE ai.insight_mensual_id_seq TO ai_readonly;
+-- Excepcion deliberada a "solo lectura" (mismo criterio que ai.consulta_log):
+-- el panel de Gerencia/Admin administra estos documentos a traves de este
+-- mismo servicio, no hay otro backend para eso.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ai.documento_contexto TO ai_readonly;
+GRANT USAGE, SELECT ON SEQUENCE ai.documento_contexto_id_seq TO ai_readonly;
 
 -- Nota: ai_readonly NO tiene ningún permiso sobre staging.* ni sobre las
 -- tablas base de dwh.* -- solo ve las vistas explícitas de este archivo.

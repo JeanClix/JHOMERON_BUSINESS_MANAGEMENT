@@ -24,7 +24,7 @@ import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
         <div>
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-black uppercase tracking-wider text-[#0d3393] bg-[#0d3393]/10 px-2.5 py-0.5 rounded">
-              ANÁLISIS DE GERENCIA DEEPWIKI
+              ANÁLISIS DE GERENCIA
             </span>
             @if (chatService.processingStage() === 'completed') {
               <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded flex items-center gap-1">

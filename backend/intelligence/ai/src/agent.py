@@ -12,7 +12,7 @@ from pathlib import Path
 from openai import APIStatusError, OpenAI
 
 from .config import settings
-from .tools import SqlToolError, build_sql_tool_schema, ejecutar_sql
+from .tools import SqlToolError, build_kb_tool_schema, build_sql_tool_schema, buscar_base_conocimiento, ejecutar_sql
 from .audit import registrar_consulta
 
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -22,6 +22,13 @@ _SYSTEM_PROMPT_VENDEDOR = (_PROMPTS_DIR / "system_prompt_vendedor.md").read_text
 _client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key)
 
 MAX_TOOL_ROUNDS = 6
+
+# Mensajes previos (user+assistant, sin contar tool calls) que se reenvian al
+# LLM como contexto de la conversacion -- ver responder_pregunta(). Un numero
+# chico porque cada mensaje viejo ya "gasto" su presupuesto de tokens una vez;
+# 8 mensajes (~4 turnos) alcanza para que el asistente recuerde de que se
+# viene hablando sin arrastrar una conversacion entera cada vez.
+_HISTORIAL_MAX_MENSAJES = 8
 
 _MESES_ES = [
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -81,14 +88,31 @@ def _completar_con_reintento(**kwargs):
             time.sleep(_RATE_LIMIT_ESPERA_S * (intento + 1))
 
 
-def responder_pregunta(pregunta: str, vendedor: str | None = None, nombre: str | None = None) -> dict:
+def responder_pregunta(
+    pregunta: str,
+    vendedor: str | None = None,
+    nombre: str | None = None,
+    rol: str = "GERENCIA",
+    historial: list[dict] | None = None,
+) -> dict:
     """`vendedor` viene del claim `vendedorNombreSap` del JWT (nunca de un
     parámetro que mande el cliente) -- ver main.py/auth.py. Si es None, quien
     pregunta es GERENCIA/ADMIN y puede ver los agregados de toda la empresa;
     si tiene valor, cada consulta SQL queda forzada a las ventas de ESE
     vendedor únicamente (ver tools.py y ai.v_ventas_vendedor). `nombre` es el
     claim `name` del JWT (nombre real de la persona), solo para que el LLM
-    salude por su nombre -- nunca se usa para autorización."""
+    salude por su nombre -- nunca se usa para autorización. `rol` filtra qué
+    documentos de la base de conocimiento puede traer buscar_base_conocimiento
+    (ver ai.documento_contexto.roles_visibles).
+
+    `historial` son los mensajes previos de ESTA conversación (lista de
+    {"role": "user"|"assistant", "content": str}, más viejo primero, sin el
+    mensaje actual) -- el frontend los manda porque cada request a /chat es
+    stateless para este servicio (no guarda sesión); sin esto el asistente no
+    tiene memoria de lo que ya se habló y cada pregunta se resuelve aislada.
+    Se limitan a las últimas N (ver _HISTORIAL_MAX_MENSAJES) para no inflar
+    el presupuesto de tokens del LLM con una conversación larga.
+    """
     inicio = time.monotonic()
     if vendedor:
         system_prompt = _SYSTEM_PROMPT_VENDEDOR.replace(
@@ -98,8 +122,12 @@ def responder_pregunta(pregunta: str, vendedor: str | None = None, nombre: str |
         system_prompt = _SYSTEM_PROMPT_EMPRESA
     system_prompt = system_prompt.replace("{{FECHA_HOY}}", _fecha_hoy_es())
     sql_tool_schema = build_sql_tool_schema(vendedor)
+    kb_tool_schema = build_kb_tool_schema()
+
+    historial_acotado = (historial or [])[-_HISTORIAL_MAX_MENSAJES:]
     mensajes = [
         {"role": "system", "content": system_prompt},
+        *[{"role": m["role"], "content": m["content"]} for m in historial_acotado if m.get("role") in ("user", "assistant")],
         {"role": "user", "content": pregunta},
     ]
 
@@ -121,7 +149,7 @@ def responder_pregunta(pregunta: str, vendedor: str | None = None, nombre: str |
             respuesta = _completar_con_reintento(
                 model=settings.llm_model,
                 messages=mensajes,
-                tools=[sql_tool_schema],
+                tools=[sql_tool_schema, kb_tool_schema],
                 # Algunos modelos (ej. deepseek con "thinking") consumen parte del
                 # presupuesto en razonamiento antes del contenido final; con poco
                 # margen la respuesta queda vacía. Se deja margen amplio.
@@ -155,14 +183,19 @@ def responder_pregunta(pregunta: str, vendedor: str | None = None, nombre: str |
             indices_ronda_actual = set()
             for tool_call in mensaje.tool_calls:
                 args = json.loads(tool_call.function.arguments)
-                sql_generado = args.get("sql")
-                try:
-                    resultado = ejecutar_sql(sql_generado, vendedor=vendedor)
-                    filas_retornadas = resultado["num_filas"]
-                    ultimos_datos = resultado["filas"]
-                    contenido_tool = json.dumps(resultado, default=str)
-                except SqlToolError as e:
-                    contenido_tool = json.dumps({"error": str(e)})
+
+                if tool_call.function.name == "buscar_base_conocimiento":
+                    resultado_kb = buscar_base_conocimiento(args.get("consulta", ""), rol=rol)
+                    contenido_tool = json.dumps(resultado_kb, default=str)
+                else:
+                    sql_generado = args.get("sql")
+                    try:
+                        resultado = ejecutar_sql(sql_generado, vendedor=vendedor)
+                        filas_retornadas = resultado["num_filas"]
+                        ultimos_datos = resultado["filas"]
+                        contenido_tool = json.dumps(resultado, default=str)
+                    except SqlToolError as e:
+                        contenido_tool = json.dumps({"error": str(e)})
 
                 mensajes.append({
                     "role": "tool",

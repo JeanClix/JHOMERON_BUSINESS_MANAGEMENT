@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import APIStatusError
 from pydantic import BaseModel
 
+from . import documentos
 from .agent import _es_rate_limit, responder_pregunta
 from .auth import get_bearer_token, get_current_claims, require_gerencia, require_vendedor, resolve_chat_identity
 from .insights import generar_insights, obtener_insights_actuales
@@ -33,13 +34,24 @@ def _iniciar_scheduler_insights():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+
+app.include_router(documentos.router)
+
+
+class MensajeHistorial(BaseModel):
+    role: str
+    content: str
 
 
 class PreguntaRequest(BaseModel):
     pregunta: str
+    # Mensajes previos de esta conversación (más viejo primero, sin incluir
+    # `pregunta`) -- ver comentario en agent.responder_pregunta. Opcional:
+    # una primera pregunta de una conversación nueva no manda nada.
+    historial: list[MensajeHistorial] = []
 
 
 class RespuestaResponse(BaseModel):
@@ -70,7 +82,13 @@ def chat(
     request, no se vuelve a parsear) -- solo se usa para el nombre con el
     que saluda el asistente, nunca para autorización."""
     try:
-        return responder_pregunta(request.pregunta, vendedor=vendedor, nombre=claims.get("name"))
+        return responder_pregunta(
+            request.pregunta,
+            vendedor=vendedor,
+            nombre=claims.get("name"),
+            rol=claims.get("role", "GERENCIA"),
+            historial=[m.model_dump() for m in request.historial],
+        )
     except APIStatusError as e:
         if _es_rate_limit(e):
             raise HTTPException(

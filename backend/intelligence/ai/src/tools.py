@@ -80,6 +80,92 @@ def build_sql_tool_schema(vendedor: str | None) -> dict:
     }
 
 
+def build_kb_tool_schema() -> dict:
+    return {
+        "type": "function",
+        "function": {
+            "name": "buscar_base_conocimiento",
+            "description": (
+                "Busca en la base de conocimiento institucional de JHOMERON (quién es la empresa, "
+                "visión, misión, objetivos, políticas, testimonios, procesos, etc.) -- NO ventas ni "
+                "cifras. Úsala cuando te pregunten sobre la empresa en sí, nunca para números de "
+                "ventas/clientes/productos (eso es ejecutar_sql)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "consulta": {
+                        "type": "string",
+                        "description": "Palabras clave de lo que se busca, ej. 'misión', 'política de créditos', 'testimonios de clientes'.",
+                    }
+                },
+                "required": ["consulta"],
+            },
+        },
+    }
+
+
+_STOPWORDS_ES = {
+    "de", "la", "el", "los", "las", "un", "una", "unos", "unas", "y", "o", "a", "en",
+    "que", "es", "son", "para", "por", "con", "sobre", "cual", "cuales", "cuál", "cuáles",
+    "como", "cómo", "del", "al", "su", "sus", "nos", "les", "se", "me", "mi", "tu",
+    "jhomeron", "empresa", "cuenta", "cuentame", "cuéntame", "dime", "hablame", "háblame",
+}
+
+
+def buscar_base_conocimiento(consulta: str, rol: str) -> dict:
+    """Búsqueda por palabras clave (ILIKE, una condición OR por palabra
+    significativa) sobre ai.documento_contexto, acotada a los documentos
+    activos visibles para `rol`. Deliberadamente NO es una coincidencia
+    exacta de toda la frase: el LLM manda la consulta con sus propias
+    palabras ("políticas de reactivación de clientes"), que rara vez calzan
+    letra por letra con el texto del documento ("Política de reactivación
+    de clientes", singular) -- exigir la frase completa como un solo
+    substring falla casi siempre. No es similitud de embeddings -- para un
+    catálogo chico de documentos institucionales, ILIKE por palabra alcanza
+    sin la complejidad de mantener una base vectorial."""
+    palabras = [
+        p for p in re.findall(r"[a-záéíóúñü]{4,}", consulta.lower())
+        if p not in _STOPWORDS_ES
+    ]
+    if not palabras:
+        return {"encontrados": 0, "documentos": []}
+
+    condiciones = " OR ".join(["titulo ILIKE %s OR contenido ILIKE %s"] * len(palabras))
+    parametros: list[str] = []
+    for p in palabras:
+        patron = f"%{p}%"
+        parametros.extend([patron, patron])
+
+    with get_connection() as conn:
+        filas = conn.execute(
+            f"""
+            SELECT titulo, categoria, contenido
+            FROM ai.documento_contexto
+            WHERE activo = true
+              AND %s = ANY(roles_visibles)
+              AND ({condiciones})
+            ORDER BY fecha_actualizacion DESC
+            LIMIT 3
+            """,
+            (rol, *parametros),
+        ).fetchall()
+
+    if not filas:
+        return {"encontrados": 0, "documentos": []}
+
+    # Contenido recortado: son documentos institucionales cortos por diseño,
+    # pero igual se acota para no arrastrar un documento gigante al presupuesto
+    # de tokens del LLM en una sola llamada.
+    return {
+        "encontrados": len(filas),
+        "documentos": [
+            {"titulo": f["titulo"], "categoria": f["categoria"], "contenido": f["contenido"][:4000]}
+            for f in filas
+        ],
+    }
+
+
 class SqlToolError(Exception):
     pass
 

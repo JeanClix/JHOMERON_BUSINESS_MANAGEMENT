@@ -38,7 +38,7 @@ import { BusinessDocument } from '../../../../core/models/document.model';
                 class="rounded-xl bg-white border border-slate-200 hover:border-red-400 hover:text-red-600 text-slate-600 px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5"
               >
                 <i class="fa-solid fa-trash text-xs"></i>
-                <span>Desactivar</span>
+                <span>Quitar</span>
               </button>
               @if (mostrarBotonIA()) {
                 <button

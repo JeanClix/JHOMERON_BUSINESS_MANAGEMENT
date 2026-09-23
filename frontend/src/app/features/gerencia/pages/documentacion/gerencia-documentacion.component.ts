@@ -31,7 +31,7 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <span class="text-xs font-bold text-[#0d3393] uppercase tracking-wider bg-[#0d3393]/10 px-2.5 py-0.5 rounded">
-            DEEPWIKI ENTERPRISE
+            BASE DE CONOCIMIENTO
           </span>
           <h1 class="text-2xl font-black text-slate-900 mt-1">
             Base de Conocimiento y Documentación Empresarial
@@ -161,14 +161,14 @@ export class GerenciaDocumentacionComponent implements OnInit {
   }
 
   protected onDeactivateDoc(doc: BusinessDocument) {
-    if (!confirm(`¿Desactivar el documento "${doc.title}"? Dejará de aparecer en las búsquedas del chat.`)) return;
+    if (!confirm(`¿Quitar el documento "${doc.title}"? Se borra por completo y ya no aparecerá en las búsquedas del chat.`)) return;
 
     this.contextDocumentService.eliminar(Number(doc.id)).subscribe({
       next: () => {
         if (this.selectedDoc()?.id === doc.id) this.selectedDoc.set(null);
         this.cargar();
       },
-      error: () => this.errorMessage.set('No se pudo desactivar el documento.')
+      error: () => this.errorMessage.set('No se pudo quitar el documento.')
     });
   }
 }

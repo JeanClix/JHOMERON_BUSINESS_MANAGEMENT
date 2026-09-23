@@ -16,10 +16,10 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
       <div class="pointer-events-auto w-full bg-white/90 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-12px_30px_-5px_rgba(15,23,42,0.08)] px-4 md:px-6 py-3.5 space-y-2.5">
         <!-- Top Row: Processing Status Indicator OR Query History Chips -->
         <div class="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar text-xs">
-          @if (chatService.processingStage() !== 'idle' && chatService.processingStage() !== 'completed') {
+          @if (chatService.isChatLoading()) {
             <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-[#0d3393]/10 text-[#0d3393] font-extrabold text-[11px] animate-pulse border border-[#0d3393]/20">
               <i class="fa-solid fa-spinner animate-spin"></i>
-              <span>{{ chatService.processingMessage() }}</span>
+              <span>Consultando el Data Warehouse...</span>
             </div>
           } @else {
             <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -42,7 +42,7 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
           }
 
           <!-- Back to Main Dashboard Button -->
-          @if (chatService.activeAnalysis()) {
+          @if (chatService.messages().length > 1) {
             <button
               type="button"
               (click)="chatService.resetToDashboard()"
@@ -86,8 +86,7 @@ export class GerenciaChatBarComponent {
   queryInput = '';
 
   isBusy(): boolean {
-    const stage = this.chatService.processingStage();
-    return stage !== 'idle' && stage !== 'completed';
+    return this.chatService.isChatLoading();
   }
 
   onFormSubmit() {

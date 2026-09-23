@@ -22,7 +22,7 @@ export interface NavGroup {
   template: `
     <aside
       [class]="'flex h-full flex-col justify-between bg-[#0c3c98] rounded-r-2xl text-white transition-all duration-300 select-none shadow-xl border-r border-[#0b2670] ' +
-        (isCollapsed() ? 'w-20' : 'w-72')"
+        (isCollapsed() ? 'w-24' : 'w-80')"
     >
       <!-- HEADER / LOGO -->
       <div>
@@ -83,10 +83,10 @@ export interface NavGroup {
                     <!-- Label & Subtitle -->
                     @if (!isCollapsed()) {
                       <div class="flex flex-1 flex-col overflow-hidden min-w-0">
-                        <div class="flex items-center justify-between gap-1.5">
-                          <span class="truncate text-sm font-bold tracking-tight">{{ item.label }}</span>
+                        <div class="flex items-center justify-between gap-1.5 min-w-0">
+                          <span class="truncate min-w-0 text-sm font-bold tracking-tight">{{ item.label }}</span>
                           @if (item.badge) {
-                            <span [class]="'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ' + (item.badgeColor || 'bg-[#ef0606] text-white')">
+                            <span [class]="'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ' + (item.badgeColor || 'bg-[#ef0606] text-white')">
                               {{ item.badge }}
                             </span>
                           }
