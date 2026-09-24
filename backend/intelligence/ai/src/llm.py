@@ -281,7 +281,9 @@ def nueva_conversacion(system_prompt: str, historial: list[dict], pregunta: str)
 # Llamada simple sin tools (insights, recomendaciones)
 # ============================================================
 
-def completar_texto(system_prompt: str, mensaje_usuario: str, max_tokens: int) -> str:
+def completar_texto(system_prompt: str, mensaje_usuario: str, max_tokens: int, uso: dict | None = None) -> str:
+    """`uso`, si se pasa, se completa con {"entrada": int, "salida": int}
+    para la auditoría de consumo (ai.consulta_log)."""
     if _usa_anthropic():
         respuesta = _con_reintento(
             lambda: _anthropic().messages.create(
@@ -292,6 +294,8 @@ def completar_texto(system_prompt: str, mensaje_usuario: str, max_tokens: int) -
             ),
             None,
         )
+        if uso is not None:
+            uso.update(entrada=respuesta.usage.input_tokens, salida=respuesta.usage.output_tokens)
         return "".join(b.text for b in respuesta.content if b.type == "text")
 
     respuesta = _con_reintento(
@@ -305,4 +309,6 @@ def completar_texto(system_prompt: str, mensaje_usuario: str, max_tokens: int) -
         ),
         None,
     )
+    if uso is not None and respuesta.usage:
+        uso.update(entrada=respuesta.usage.prompt_tokens, salida=respuesta.usage.completion_tokens)
     return respuesta.choices[0].message.content or ""

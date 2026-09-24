@@ -72,6 +72,12 @@ class TrazaTiempos:
         detalle = getattr(uso, "completion_tokens_details", None)
         ronda["tokens_razonamiento"] = getattr(detalle, "reasoning_tokens", None) if detalle else None
 
+    def tokens_totales(self) -> tuple[int, int]:
+        """(entrada, salida) sumando todas las rondas hasta ahora -- lo que se
+        guarda en ai.consulta_log para el panel de consumo de Admin."""
+        rondas = self.datos["rondas"]
+        return (sum(r["tokens_entrada"] or 0 for r in rondas), sum(r["tokens_salida"] or 0 for r in rondas))
+
     @staticmethod
     def registrar_tool(ronda: dict, nombre: str, desde: float, error: bool) -> None:
         ronda["tools"].append({"nombre": nombre, "ms": _ms(desde), "error": error})

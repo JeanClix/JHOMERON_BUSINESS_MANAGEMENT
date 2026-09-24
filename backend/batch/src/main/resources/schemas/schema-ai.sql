@@ -131,6 +131,18 @@ CREATE TABLE IF NOT EXISTS ai.consulta_log (
 
 COMMENT ON TABLE ai.consulta_log IS 'Traza de cada pregunta al asistente de IA: pregunta original, SQL generado, filas devueltas y respuesta final. Permite responder de que dato real provino una respuesta.';
 
+-- Consumo de IA por empleado (panel de Admin, ver backend/admin
+-- ConsumoIaController): quién hizo la pregunta y cuántos tokens gastó.
+-- `usuario` es el claim `sub` del JWT (usuarios.usuario en backend/admin),
+-- nunca un dato que mande el cliente. ADD COLUMN IF NOT EXISTS para poder
+-- re-aplicar este archivo sobre una base que ya tenía la tabla; las filas
+-- anteriores quedan con estas columnas en NULL.
+ALTER TABLE ai.consulta_log ADD COLUMN IF NOT EXISTS usuario VARCHAR(100);
+ALTER TABLE ai.consulta_log ADD COLUMN IF NOT EXISTS rol VARCHAR(20);
+ALTER TABLE ai.consulta_log ADD COLUMN IF NOT EXISTS tokens_entrada INT;
+ALTER TABLE ai.consulta_log ADD COLUMN IF NOT EXISTS tokens_salida INT;
+CREATE INDEX IF NOT EXISTS idx_consulta_log_fecha ON ai.consulta_log (fecha);
+
 -- Oportunidades de mejora para el dashboard de gerencia (seccion "Insights
 -- Estrategicos"). Se generan UNA VEZ por periodo (ver
 -- backend/intelligence/ai/src/insights.py: calculo de senales con SQL

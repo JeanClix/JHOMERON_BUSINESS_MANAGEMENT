@@ -50,10 +50,11 @@ def generar_recomendaciones(vendedor: str, clientes: list[dict]) -> list[dict]:
 
     respuesta_llm: str | None = None
     error: str | None = None
+    uso: dict = {}
     recomendaciones_por_cliente: dict[str, str] = {}
 
     try:
-        respuesta_llm = completar_texto(_PROMPT_SISTEMA, entrada, max_tokens=1536)
+        respuesta_llm = completar_texto(_PROMPT_SISTEMA, entrada, max_tokens=1536, uso=uso)
         parsed = json.loads(_extraer_json(respuesta_llm))
         for item in parsed:
             if isinstance(item, dict) and "cliente" in item and "recomendacion" in item:
@@ -74,6 +75,9 @@ def generar_recomendaciones(vendedor: str, clientes: list[dict]) -> list[dict]:
         exito=error is None,
         error=error,
         duracion_ms=duracion_ms,
+        rol="VENDEDOR",
+        tokens_entrada=uso.get("entrada"),
+        tokens_salida=uso.get("salida"),
     )
 
     resultado = []

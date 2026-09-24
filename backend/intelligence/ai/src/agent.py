@@ -70,6 +70,7 @@ def responder_pregunta(
     vendedor: str | None = None,
     nombre: str | None = None,
     historial: list[dict] | None = None,
+    usuario: str | None = None,
 ) -> dict:
     """`vendedor` viene del claim `vendedorNombreSap` del JWT (nunca de un
     parámetro que mande el cliente) -- ver main.py/auth.py. Si es None, quien
@@ -80,7 +81,8 @@ def responder_pregunta(
     `vendedor`, buscar_documentos lo necesita siempre (los tres roles pueden
     consultar documentos, no solo VENDEDOR). `nombre` es el claim `name` del
     JWT (nombre real de la persona), solo para que el LLM salude por su
-    nombre -- nunca se usa para autorización.
+    nombre -- nunca se usa para autorización. `usuario` es el claim `sub`
+    del JWT, solo para la auditoría de consumo (ai.consulta_log.usuario).
 
     `historial` son los mensajes previos de ESTA conversación (lista de
     {"role": "user"|"assistant", "content": str}, más viejo primero, sin el
@@ -117,6 +119,10 @@ def responder_pregunta(
             exito=True,
             error=None,
             duracion_ms=duracion_ms,
+            usuario=usuario,
+            rol=rol,
+            tokens_entrada=0,
+            tokens_salida=0,
         )
         traza.cerrar(exito=True)
         return {
@@ -174,6 +180,10 @@ def responder_pregunta(
                     exito=True,
                     error=None,
                     duracion_ms=duracion_ms,
+                    usuario=usuario,
+                    rol=rol,
+                    tokens_entrada=traza.tokens_totales()[0],
+                    tokens_salida=traza.tokens_totales()[1],
                 )
                 traza.cerrar(exito=True)
                 return {
@@ -232,6 +242,10 @@ def responder_pregunta(
             exito=False,
             error=str(e),
             duracion_ms=duracion_ms,
+            usuario=usuario,
+            rol=rol,
+            tokens_entrada=traza.tokens_totales()[0],
+            tokens_salida=traza.tokens_totales()[1],
         )
         traza.cerrar(exito=False, error=str(e))
         raise

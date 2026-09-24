@@ -83,6 +83,10 @@ export const routes: Routes = [
         // GerenciaDocumentacionComponent, que ya trae el CRUD de documentos.
         path: 'documentos',
         loadComponent: () => import('./features/gerencia/pages/documentacion/gerencia-documentacion.component').then(m => m.GerenciaDocumentacionComponent)
+      },
+      {
+        path: 'consumo-ia',
+        loadComponent: () => import('./features/admin/consumo-ia/consumo-ia').then(m => m.ConsumoIa)
       }
     ]
   },

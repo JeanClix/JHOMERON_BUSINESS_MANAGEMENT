@@ -27,6 +27,12 @@ export class AdminLayout {
           label: 'Documentos de Contexto',
           route: '/admin/documentos',
           icon: 'fa-solid fa-book-bookmark',
+        },
+        {
+          id: 'consumo-ia',
+          label: 'Consumo de IA',
+          route: '/admin/consumo-ia',
+          icon: 'fa-solid fa-chart-column',
         }
       ]
     }

@@ -95,6 +95,7 @@ def chat(
             vendedor=vendedor,
             nombre=claims.get("name"),
             historial=[m.model_dump() for m in request.historial],
+            usuario=claims.get("sub"),
         )
     except Exception as e:
         if es_rate_limit(e):

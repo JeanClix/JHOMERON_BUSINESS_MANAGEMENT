@@ -1,0 +1,208 @@
+<div class="max-w-6xl mx-auto">
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+    <div>
+      <h3 class="text-2xl font-bold text-[#0d3393]">Consumo de IA</h3>
+      <p class="text-sm text-slate-500 mt-1">Preguntas al asistente y tokens gastados por cada empleado</p>
+    </div>
+    <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1" role="group" aria-label="Período">
+      @for (p of periodos; track p) {
+        <button type="button" (click)="cambiarPeriodo(p)"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                [class]="dias() === p ? 'bg-[#0d3393] text-white' : 'text-slate-600 hover:bg-slate-50'"
+                [attr.aria-pressed]="dias() === p">
+          Últimos {{ p }} días
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="mb-6 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  @if (datos(); as d) {
+    <!-- Indicadores -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <p class="text-sm text-slate-500">Preguntas</p>
+        <p class="text-3xl font-semibold text-slate-900 mt-1">{{ compacto(d.totales.preguntas) }}</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <p class="text-sm text-slate-500">Tokens de entrada</p>
+        <p class="text-3xl font-semibold text-slate-900 mt-1">{{ compacto(d.totales.tokensEntrada) }}</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <p class="text-sm text-slate-500">Tokens de salida</p>
+        <p class="text-3xl font-semibold text-slate-900 mt-1">{{ compacto(d.totales.tokensSalida) }}</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <p class="text-sm text-slate-500">Costo estimado</p>
+        <p class="text-3xl font-semibold text-slate-900 mt-1">{{ usd(d.totales.costoEstimadoUsd) }}</p>
+        <p class="text-xs text-slate-400 mt-1">USD, según el precio de cada modelo</p>
+      </div>
+    </div>
+    @if (d.totales.preguntasSinTokens > 0) {
+      <p class="text-xs text-slate-500 mb-8">
+        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+        {{ entero(d.totales.preguntasSinTokens) }} preguntas son anteriores al registro de tokens y no suman a estos totales.
+      </p>
+    } @else {
+      <div class="mb-8"></div>
+    }
+
+    <!-- Por empleado -->
+    <h4 class="text-lg font-semibold text-slate-800 mb-3">Por empleado</h4>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-10">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600">
+          <thead class="text-xs uppercase bg-slate-50 text-slate-500 border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-4 font-semibold">Empleado</th>
+              <th class="px-6 py-4 font-semibold">Rol</th>
+              <th class="px-6 py-4 font-semibold text-right">Preguntas</th>
+              <th class="px-6 py-4 font-semibold text-right">Tokens entrada</th>
+              <th class="px-6 py-4 font-semibold text-right">Tokens salida</th>
+              <th class="px-6 py-4 font-semibold text-right">Costo est.</th>
+              <th class="px-6 py-4 font-semibold">Última pregunta</th>
+              <th class="px-6 py-4"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (u of d.porUsuario; track u.clave) {
+              <tr class="hover:bg-slate-50 transition-colors" [class.bg-blue-50]="filtro()?.clave === u.clave">
+                <td class="px-6 py-4">
+                  <div class="font-medium text-slate-900">{{ nombreDe(u) }}</div>
+                  @if (detalleDe(u); as detalle) {
+                    <div class="text-xs text-slate-400">{{ detalle }}</div>
+                  }
+                </td>
+                <td class="px-6 py-4">
+                  @if (u.rol) {
+                    <span class="px-2.5 py-1 text-xs font-semibold rounded-full border"
+                          [class.bg-blue-50]="u.rol === 'GERENCIA'" [class.text-blue-700]="u.rol === 'GERENCIA'" [class.border-blue-200]="u.rol === 'GERENCIA'"
+                          [class.bg-emerald-50]="u.rol === 'VENDEDOR'" [class.text-emerald-700]="u.rol === 'VENDEDOR'" [class.border-emerald-200]="u.rol === 'VENDEDOR'"
+                          [class.bg-purple-50]="u.rol === 'ADMIN'" [class.text-purple-700]="u.rol === 'ADMIN'" [class.border-purple-200]="u.rol === 'ADMIN'">
+                      {{ u.rol }}
+                    </span>
+                  } @else {
+                    <span class="text-slate-400">—</span>
+                  }
+                </td>
+                <td class="px-6 py-4 text-right tabular-nums">
+                  {{ entero(u.preguntas) }}
+                  @if (u.fallidas > 0) {
+                    <div class="text-xs text-rose-600">
+                      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ u.fallidas }} con error
+                    </div>
+                  }
+                </td>
+                @if (u.preguntasSinTokens === u.preguntas) {
+                  <td colspan="3" class="px-6 py-4 text-right text-xs text-slate-400">Sin datos de tokens</td>
+                } @else {
+                  <td class="px-6 py-4 text-right tabular-nums">{{ entero(u.tokensEntrada) }}</td>
+                  <td class="px-6 py-4 text-right tabular-nums">{{ entero(u.tokensSalida) }}</td>
+                  <td class="px-6 py-4 text-right tabular-nums">{{ usd(u.costoEstimadoUsd) }}</td>
+                }
+                <td class="px-6 py-4 whitespace-nowrap">{{ fecha(u.ultimaPregunta) }}</td>
+                <td class="px-6 py-4 text-right">
+                  <button type="button" (click)="verChats(u)"
+                          class="text-[#0d3393] hover:underline text-sm font-medium whitespace-nowrap">
+                    Ver chats
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="px-6 py-10 text-center text-slate-400">Nadie usó el asistente en este período.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Chats -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+      <h4 class="text-lg font-semibold text-slate-800">
+        Chats recientes
+        @if (filtro(); as f) {
+          <span class="text-slate-500 font-normal">de {{ nombreDe(f) }}</span>
+        }
+      </h4>
+      @if (filtro()) {
+        <button type="button" (click)="verChats(null)"
+                class="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i> Ver todos
+        </button>
+      }
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600">
+          <thead class="text-xs uppercase bg-slate-50 text-slate-500 border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3 font-semibold">Fecha</th>
+              <th class="px-4 py-3 font-semibold">Empleado</th>
+              <th class="px-4 py-3 font-semibold">Pregunta</th>
+              <th class="px-4 py-3 font-semibold text-right">Entrada</th>
+              <th class="px-4 py-3 font-semibold text-right">Salida</th>
+              <th class="px-4 py-3 font-semibold">Modelo</th>
+              <th class="px-4 py-3 font-semibold">Estado</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (c of d.chats; track c.id) {
+              <tr class="hover:bg-slate-50 transition-colors cursor-pointer" (click)="alternarChat(c)"
+                  [attr.aria-expanded]="chatAbierto() === c.id">
+                <td class="px-4 py-3 whitespace-nowrap">{{ fecha(c.fecha) }}</td>
+                <td class="px-4 py-3">
+                  <div class="text-slate-900">{{ nombreDe(c) }}</div>
+                  @if (c.rol) {
+                    <div class="text-xs text-slate-400">{{ c.rol }}</div>
+                  }
+                </td>
+                <td class="px-4 py-3 max-w-xs">
+                  <div class="truncate" [title]="c.pregunta">{{ c.pregunta }}</div>
+                </td>
+                <td class="px-4 py-3 text-right tabular-nums">{{ entero(c.tokensEntrada) }}</td>
+                <td class="px-4 py-3 text-right tabular-nums">{{ entero(c.tokensSalida) }}</td>
+                <td class="px-4 py-3 text-xs break-all min-w-[7rem]">{{ c.modelo ?? '—' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  @if (c.exito) {
+                    <span class="text-emerald-700 text-xs font-medium"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Respondida</span>
+                  } @else {
+                    <span class="text-rose-600 text-xs font-medium"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i> Error</span>
+                  }
+                </td>
+              </tr>
+              @if (chatAbierto() === c.id) {
+                <tr class="bg-slate-50">
+                  <td colspan="7" class="px-4 py-3">
+                    <p class="text-xs font-semibold text-slate-500 mb-1">Pregunta</p>
+                    <p class="text-slate-800 mb-3 whitespace-pre-line">{{ c.pregunta }}</p>
+                    <p class="text-xs font-semibold text-slate-500 mb-1">Respuesta (primeros 400 caracteres)</p>
+                    <p class="text-slate-700 whitespace-pre-line">{{ c.respuesta ?? 'Sin respuesta (la pregunta falló).' }}</p>
+                    @if (c.duracionMs !== null) {
+                      <p class="text-xs text-slate-400 mt-3">Tardó {{ entero(c.duracionMs) }} ms</p>
+                    }
+                  </td>
+                </tr>
+              }
+            } @empty {
+              <tr>
+                <td colspan="7" class="px-6 py-10 text-center text-slate-400">No hay chats en este período.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (d.chats.length === 200) {
+        <p class="text-xs text-slate-400 px-6 py-3 border-t border-slate-100">Se muestran los 200 chats más recientes.</p>
+      }
+    </div>
+  } @else if (cargando()) {
+    <p class="text-slate-500 text-sm">Cargando consumo de IA…</p>
+  }
+</div>
