@@ -40,7 +40,7 @@ class TrazaTiempos:
         self.datos: dict = {
             "fecha": datetime.now().isoformat(timespec="seconds"),
             "modelo": settings.llm_model,
-            "proveedor": settings.llm_base_url,
+            "proveedor": "anthropic" if settings.llm_provider == "anthropic" else settings.llm_base_url,
             "rol": rol,
             "pregunta": pregunta[:200],
             "historial_mensajes": historial_mensajes,

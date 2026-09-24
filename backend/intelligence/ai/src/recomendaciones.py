@@ -8,12 +8,9 @@ necesita LLM: redactar 1-2 frases accionables no es una GROUP BY.
 import json
 import time
 
-from openai import OpenAI
-
 from .audit import registrar_consulta
-from .config import opciones_llm, settings
-
-_client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key)
+from .config import settings
+from .llm import completar_texto
 
 _PROMPT_SISTEMA = """Eres un asistente comercial de JHOMERON (fabricante de pinturas \
 industriales, Peru). Se te da una lista de clientes que llevan tiempo sin \
@@ -56,15 +53,7 @@ def generar_recomendaciones(vendedor: str, clientes: list[dict]) -> list[dict]:
     recomendaciones_por_cliente: dict[str, str] = {}
 
     try:
-        respuesta = _client.chat.completions.create(
-            model=settings.llm_model,
-            messages=[
-                {"role": "system", "content": _PROMPT_SISTEMA},
-                {"role": "user", "content": entrada},
-            ],
-            **opciones_llm(1536),
-        )
-        respuesta_llm = respuesta.choices[0].message.content or ""
+        respuesta_llm = completar_texto(_PROMPT_SISTEMA, entrada, max_tokens=1536)
         parsed = json.loads(_extraer_json(respuesta_llm))
         for item in parsed:
             if isinstance(item, dict) and "cliente" in item and "recomendacion" in item:

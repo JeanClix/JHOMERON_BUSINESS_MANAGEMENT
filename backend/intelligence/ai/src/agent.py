@@ -12,12 +12,11 @@ import time
 from datetime import date
 from pathlib import Path
 
-from openai import APIConnectionError, APIStatusError, OpenAI
-
-from .config import opciones_llm, settings
+from .config import settings
 from .tools import SqlToolError, build_rag_tool_schema, build_sql_tool_schema, buscar_documentos, ejecutar_sql
 from .audit import registrar_consulta
 from .enrutador import RUTA_FUERA_DE_TEMA, TOOL_DOCUMENTOS, TOOL_SQL, enrutar
+from .llm import nueva_conversacion
 from .tiempos import TrazaTiempos
 
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -44,11 +43,6 @@ def _respuesta_fuera_de_tema(vendedor: str | None, nombre: str | None) -> str:
         return f"{saludo} puedo ayudarte con tus ventas, clientes y productos, o con documentación de JHOMERON. ¿Te ayudo con algo de eso?"
     return "Solo puedo ayudarte con consultas del negocio de JHOMERON: ventas, clientes, productos o documentación de la empresa. ¿Quieres preguntarme algo de eso?"
 
-# max_retries=0: los reintentos los hace _completar_con_reintento. Con los
-# del SDK (2 por defecto) un 429 de Groq se dormía en silencio 12-31 s dentro
-# de la llamada y la traza de tiempos lo veía como "LLM lento".
-_client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key, max_retries=0)
-
 MAX_TOOL_ROUNDS = 6
 
 # Mensajes previos (user+assistant, sin contar tool calls) que se reenvian al
@@ -68,81 +62,6 @@ def _fecha_hoy_es() -> str:
     """Fecha de hoy en español, sin depender del locale del servidor."""
     hoy = date.today()
     return f"{hoy.day} de {_MESES_ES[hoy.month - 1]} de {hoy.year}"
-
-
-_RATE_LIMIT_REINTENTOS = 3
-_RATE_LIMIT_ESPERA_S = 8
-_RATE_LIMIT_ESPERA_MAX_S = 60
-
-
-def _es_rate_limit(e: APIStatusError) -> bool:
-    """Groq responde el rate limit por TPM con distintos status codes (429
-    o incluso 413) pero siempre con code=='rate_limit_exceeded' en el body."""
-    body = e.body if isinstance(e.body, dict) else {}
-    codigo = (body.get("error") or {}).get("code") if isinstance(body.get("error"), dict) else None
-    return e.status_code == 429 or codigo == "rate_limit_exceeded"
-
-
-# Placeholder que reemplaza el resultado de una ronda de tool-calling YA
-# PASADA (ver _podar_resultados_antiguos): el modelo ya razonó sobre esos
-# datos en su propia respuesta de esa ronda -- esa conclusión sigue intacta
-# en sus mensajes anteriores, no hace falta reenviar el JSON crudo cada vez
-# que se llama al LLM de nuevo. Sin esto, una pregunta que necesita varias
-# consultas encadenadas (ej. "compara el mes con más ingreso contra el de
-# menos y explica por qué") acumula tanto JSON en el historial que una ronda
-# intermedia supera el límite de tokens por minuto del LLM y la pregunta
-# falla aunque cada consulta individual sea chica.
-_PLACEHOLDER_RONDA_ANTERIOR = json.dumps({
-    "nota": "Resultado de una consulta de una ronda anterior de esta misma pregunta -- ya fue usado. "
-            "Si lo necesitas de nuevo, vuelve a ejecutar la consulta."
-})
-
-
-def _podar_resultados_antiguos(mensajes: list[dict], indices_a_mantener: set[int]) -> None:
-    for i, m in enumerate(mensajes):
-        if m.get("role") == "tool" and i not in indices_a_mantener and m["content"] != _PLACEHOLDER_RONDA_ANTERIOR:
-            m["content"] = _PLACEHOLDER_RONDA_ANTERIOR
-
-
-def _espera_rate_limit_s(e: APIStatusError, intento: int) -> float:
-    """Lo que pide el proveedor en `retry-after` (Groq lo manda con la
-    cuenta exacta hasta que se libera cupo); si no viene, backoff lineal."""
-    try:
-        return min(float(e.response.headers.get("retry-after")), _RATE_LIMIT_ESPERA_MAX_S)
-    except (TypeError, ValueError):
-        return _RATE_LIMIT_ESPERA_S * (intento + 1)
-
-
-def _completar_con_reintento(ronda: dict | None = None, **kwargs):
-    """Reintenta cuando el LLM devuelve rate limit (TPM), esperando lo que
-    indique el proveedor -- la ventana de Groq es por minuto. También
-    reintenta errores transitorios (red, 5xx), como hacía el SDK antes de
-    max_retries=0.
-
-    `ronda` (ver tiempos.py) acumula por separado el tiempo en llamadas al
-    LLM (incluidas las que fallan por rate limit) y el tiempo dormido
-    esperando para reintentar."""
-    for intento in range(_RATE_LIMIT_REINTENTOS + 1):
-        desde = time.monotonic()
-        try:
-            respuesta = _client.chat.completions.create(**kwargs)
-            if ronda is not None:
-                ronda["llm_ms"] += int((time.monotonic() - desde) * 1000)
-                TrazaTiempos.registrar_uso(ronda, respuesta)
-            return respuesta
-        except (APIStatusError, APIConnectionError) as e:
-            if ronda is not None:
-                ronda["llm_ms"] += int((time.monotonic() - desde) * 1000)
-            es_rate_limit = isinstance(e, APIStatusError) and _es_rate_limit(e)
-            es_transitorio = isinstance(e, APIConnectionError) or e.status_code >= 500
-            if intento == _RATE_LIMIT_REINTENTOS or not (es_rate_limit or es_transitorio):
-                raise
-            espera_s = _espera_rate_limit_s(e, intento) if es_rate_limit else intento + 1
-            if ronda is not None:
-                ronda["reintentos"] += 1
-                if es_rate_limit:
-                    ronda["espera_rate_limit_ms"] += int(espera_s * 1000)
-            time.sleep(espera_s)
 
 
 def responder_pregunta(
@@ -214,21 +133,18 @@ def responder_pregunta(
         tools_llm.append(build_sql_tool_schema(vendedor))
     if TOOL_DOCUMENTOS in decision.tools:
         tools_llm.append(build_rag_tool_schema())
-    # Sin tools (ruta "saludo") no se manda la clave: algunos proveedores
-    # rechazan `tools=[]`.
-    kwargs_tools = {"tools": tools_llm} if tools_llm else {}
 
-    mensajes = [
-        {"role": "system", "content": system_prompt},
-        *[{"role": m["role"], "content": m["content"]} for m in historial_acotado if m.get("role") in ("user", "assistant")],
-        {"role": "user", "content": pregunta},
-    ]
+    conversacion = nueva_conversacion(
+        system_prompt,
+        [{"role": m["role"], "content": m["content"]} for m in historial_acotado if m.get("role") in ("user", "assistant")],
+        pregunta,
+    )
 
     sql_generado = None
     filas_retornadas = None
     ultimos_datos: list[dict] | None = None
     # Ventana deslizante de las últimas rondas de tool-calling que se
-    # mandan completas al LLM -- ver _podar_resultados_antiguos. Podar a
+    # mandan completas al LLM -- ver llm.PLACEHOLDER_RONDA_ANTERIOR. Podar a
     # solo 1 ronda le quitaba al modelo datos que todavía necesitaba para
     # preguntas comparativas (ej. "compara marzo con mayo"), y terminaba
     # agotando MAX_TOOL_ROUNDS sin llegar a una respuesta final. 2 rondas es
@@ -240,21 +156,13 @@ def responder_pregunta(
     try:
         for _ in range(MAX_TOOL_ROUNDS):
             ronda = traza.nueva_ronda()
-            respuesta = _completar_con_reintento(
-                ronda,
-                model=settings.llm_model,
-                messages=mensajes,
-                **kwargs_tools,
-                # Algunos modelos (ej. deepseek con "thinking") consumen parte del
-                # presupuesto en razonamiento antes del contenido final; con poco
-                # margen la respuesta queda vacía. Se deja margen amplio.
-                **opciones_llm(4096),
-            )
-            mensaje = respuesta.choices[0].message
-            mensajes.append(mensaje.model_dump(exclude_none=True))
+            # Algunos modelos (ej. deepseek con "thinking") consumen parte del
+            # presupuesto en razonamiento antes del contenido final; con poco
+            # margen la respuesta queda vacía. Se deja margen amplio.
+            respuesta = conversacion.completar(tools_llm, max_tokens=4096, ronda=ronda)
 
-            if not mensaje.tool_calls:
-                texto_final = mensaje.content or ""
+            if not respuesta.llamadas:
+                texto_final = respuesta.texto
                 duracion_ms = int((time.monotonic() - inicio) * 1000)
                 registrar_consulta(
                     pregunta_usuario=pregunta,
@@ -276,33 +184,28 @@ def responder_pregunta(
                     "duracion_ms": duracion_ms,
                 }
 
-            indices_ronda_actual = set()
-            for tool_call in mensaje.tool_calls:
-                args = json.loads(tool_call.function.arguments)
+            resultados_ronda: list[tuple[str, str]] = []
+            for llamada in respuesta.llamadas:
+                args = llamada.argumentos
                 desde_tool = time.monotonic()
                 tool_con_error = False
                 try:
-                    if tool_call.function.name == "ejecutar_sql":
+                    if llamada.nombre == "ejecutar_sql":
                         sql_generado = args.get("sql")
                         resultado = ejecutar_sql(sql_generado, vendedor=vendedor)
                         filas_retornadas = resultado["num_filas"]
                         ultimos_datos = resultado["filas"]
-                    elif tool_call.function.name == "buscar_documentos":
+                    elif llamada.nombre == "buscar_documentos":
                         resultado = buscar_documentos(args.get("consulta", ""), rol=rol)
                     else:
-                        raise SqlToolError(f"Tool desconocida: {tool_call.function.name}")
+                        raise SqlToolError(f"Tool desconocida: {llamada.nombre}")
                     contenido_tool = json.dumps(resultado, default=str)
                 except SqlToolError as e:
                     contenido_tool = json.dumps({"error": str(e)})
                     tool_con_error = True
-                TrazaTiempos.registrar_tool(ronda, tool_call.function.name, desde_tool, tool_con_error)
-
-                mensajes.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": contenido_tool,
-                })
-                indices_ronda_actual.add(len(mensajes) - 1)
+                TrazaTiempos.registrar_tool(ronda, llamada.nombre, desde_tool, tool_con_error)
+                resultados_ronda.append((llamada.id, contenido_tool))
+            indices_ronda_actual = conversacion.agregar_resultados(resultados_ronda)
 
             # Ver _PLACEHOLDER_RONDA_ANTERIOR: solo se mantiene el JSON
             # crudo de las últimas _RONDAS_A_MANTENER rondas, las más viejas
@@ -312,7 +215,7 @@ def responder_pregunta(
             ventana_rondas.append(indices_ronda_actual)
             del ventana_rondas[:-_RONDAS_A_MANTENER]
             indices_a_mantener = {i for ronda in ventana_rondas for i in ronda}
-            _podar_resultados_antiguos(mensajes, indices_a_mantener)
+            conversacion.podar(indices_a_mantener)
 
         # Se agotaron los intentos de tool-calling sin respuesta final
         raise RuntimeError("El modelo no llegó a una respuesta final tras varios intentos de consulta.")

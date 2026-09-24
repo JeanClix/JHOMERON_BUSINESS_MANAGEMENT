@@ -24,8 +24,8 @@ from datetime import date
 
 import httpx
 
-from .config import opciones_llm, settings
 from .db import get_connection
+from .llm import completar_texto
 
 _ML_SERVICE_URL = "http://localhost:8091"
 
@@ -275,8 +275,6 @@ def generar_insights(anio: int | None = None, mes: int | None = None) -> list[di
     """Calcula señales reales, le pide al LLM que elija/redacte 3, y
     persiste el resultado en ai.insight_mensual (reemplazando lo que hubiera
     para ese período). Devuelve las filas insertadas."""
-    from openai import OpenAI  # import local para no acoplar este módulo al cliente si no se usa
-
     hoy = date.today()
     anio = anio or hoy.year
     mes = mes or hoy.month
@@ -286,21 +284,13 @@ def generar_insights(anio: int | None = None, mes: int | None = None) -> list[di
         return []
 
     lista_senales = "\n".join(f'- id="{k}": {v}' for k, v in descripciones.items())
-    mensajes = [
-        {"role": "system", "content": _SYSTEM_PROMPT_INSIGHTS},
-        {"role": "user", "content": f"Señales candidatas de {mes}/{anio}:\n{lista_senales}"},
-    ]
-
-    client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key)
-    respuesta = client.chat.completions.create(
-        model=settings.llm_model,
-        messages=mensajes,
-        # Igual que en agent.py: algunos modelos consumen parte del
-        # presupuesto en razonamiento antes del JSON final -- con poco
-        # margen la respuesta queda truncada a mitad del array.
-        **opciones_llm(2048),
+    # Igual que en agent.py: algunos modelos consumen parte del presupuesto
+    # en razonamiento antes del JSON final -- con poco margen la respuesta
+    # queda truncada a mitad del array.
+    respuesta = completar_texto(
+        _SYSTEM_PROMPT_INSIGHTS, f"Señales candidatas de {mes}/{anio}:\n{lista_senales}", max_tokens=2048
     )
-    elegidas = _extraer_json(respuesta.choices[0].message.content or "[]")[:3]
+    elegidas = _extraer_json(respuesta or "[]")[:3]
 
     filas_finales = []
     for orden, item in enumerate(elegidas, start=1):

@@ -6,6 +6,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str
+    # "openai" (cualquier API compatible con OpenAI: Groq, xAI, OpenAI,
+    # NVIDIA -- usa LLM_BASE_URL / LLM_API_KEY) o "anthropic" (Claude, usa
+    # ANTHROPIC_API_KEY). LLM_MODEL aplica a ambos. Ver llm.py.
+    llm_provider: str = "openai"
+    anthropic_api_key: str | None = None
+    # Solo Anthropic: presupuesto de tokens de razonamiento (thinking) por
+    # llamada. 0 = sin thinking. Mínimo 1024 si se activa.
+    llm_thinking_budget: int = 0
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"
     llm_model: str = "llama3.1"

@@ -5,10 +5,9 @@ ver src/tools.py::buscar_documentos y src/documentos.py), vía tool-calling.
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from openai import APIStatusError
 from pydantic import BaseModel
 
-from .agent import _es_rate_limit, responder_pregunta
+from .agent import responder_pregunta
 from .auth import get_bearer_token, get_current_claims, require_gerencia, require_vendedor, resolve_chat_identity
 from .chunking import ExtraccionError
 from .documentos import (
@@ -20,6 +19,7 @@ from .documentos import (
     obtener_documento,
 )
 from .insights import generar_insights, obtener_insights_actuales
+from .llm import es_rate_limit
 from .recomendaciones import generar_recomendaciones
 from .reporting_client import ReportingClientError, obtener_clientes_inactivos
 
@@ -96,14 +96,12 @@ def chat(
             nombre=claims.get("name"),
             historial=[m.model_dump() for m in request.historial],
         )
-    except APIStatusError as e:
-        if _es_rate_limit(e):
+    except Exception as e:
+        if es_rate_limit(e):
             raise HTTPException(
                 status_code=503,
                 detail="El asistente está muy solicitado en este momento. Espera unos segundos y vuelve a intentar.",
             )
-        raise HTTPException(status_code=502, detail=f"Error del asistente de IA: {e}")
-    except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error del asistente de IA: {e}")
 
 
