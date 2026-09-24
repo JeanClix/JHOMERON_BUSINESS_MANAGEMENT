@@ -1,8 +1,10 @@
-"""Orquestacion del agente: pregunta -> LLM (con tool ejecutar_sql) -> SQL ->
-datos reales -> LLM interpreta -> respuesta. Cada paso queda trazado.
+"""Orquestacion del agente: pregunta -> LLM (con tools ejecutar_sql y
+buscar_documentos) -> SQL o búsqueda semántica -> datos reales -> LLM
+interpreta -> respuesta. Cada paso queda trazado.
 
-No es RAG: para datos estructurados como ventas, Text-to-SQL vía tool-calling
-responde preguntas analíticas mejor que similitud de embeddings.
+Para datos de ventas (estructurados), Text-to-SQL vía tool-calling responde
+mejor que RAG. Para documentación institucional (no estructurada: políticas,
+catálogo, procesos) sí se usa RAG -- ver buscar_documentos en tools.py.
 """
 import json
 import time
@@ -12,7 +14,7 @@ from pathlib import Path
 from openai import APIStatusError, OpenAI
 
 from .config import settings
-from .tools import SqlToolError, build_sql_tool_schema, ejecutar_sql
+from .tools import SqlToolError, build_rag_tool_schema, build_sql_tool_schema, buscar_documentos, ejecutar_sql
 from .audit import registrar_consulta
 
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -81,14 +83,19 @@ def _completar_con_reintento(**kwargs):
             time.sleep(_RATE_LIMIT_ESPERA_S * (intento + 1))
 
 
-def responder_pregunta(pregunta: str, vendedor: str | None = None, nombre: str | None = None) -> dict:
+def responder_pregunta(
+    pregunta: str, rol: str, vendedor: str | None = None, nombre: str | None = None
+) -> dict:
     """`vendedor` viene del claim `vendedorNombreSap` del JWT (nunca de un
     parámetro que mande el cliente) -- ver main.py/auth.py. Si es None, quien
     pregunta es GERENCIA/ADMIN y puede ver los agregados de toda la empresa;
     si tiene valor, cada consulta SQL queda forzada a las ventas de ESE
-    vendedor únicamente (ver tools.py y ai.v_ventas_vendedor). `nombre` es el
-    claim `name` del JWT (nombre real de la persona), solo para que el LLM
-    salude por su nombre -- nunca se usa para autorización."""
+    vendedor únicamente (ver tools.py y ai.v_ventas_vendedor). `rol` es el
+    claim `role` del JWT (VENDEDOR/GERENCIA/ADMIN) -- a diferencia de
+    `vendedor`, buscar_documentos lo necesita siempre (los tres roles pueden
+    consultar documentos, no solo VENDEDOR). `nombre` es el claim `name` del
+    JWT (nombre real de la persona), solo para que el LLM salude por su
+    nombre -- nunca se usa para autorización."""
     inicio = time.monotonic()
     if vendedor:
         system_prompt = _SYSTEM_PROMPT_VENDEDOR.replace(
@@ -98,6 +105,7 @@ def responder_pregunta(pregunta: str, vendedor: str | None = None, nombre: str |
         system_prompt = _SYSTEM_PROMPT_EMPRESA
     system_prompt = system_prompt.replace("{{FECHA_HOY}}", _fecha_hoy_es())
     sql_tool_schema = build_sql_tool_schema(vendedor)
+    rag_tool_schema = build_rag_tool_schema()
     mensajes = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": pregunta},
@@ -121,7 +129,7 @@ def responder_pregunta(pregunta: str, vendedor: str | None = None, nombre: str |
             respuesta = _completar_con_reintento(
                 model=settings.llm_model,
                 messages=mensajes,
-                tools=[sql_tool_schema],
+                tools=[sql_tool_schema, rag_tool_schema],
                 # Algunos modelos (ej. deepseek con "thinking") consumen parte del
                 # presupuesto en razonamiento antes del contenido final; con poco
                 # margen la respuesta queda vacía. Se deja margen amplio.
@@ -155,11 +163,16 @@ def responder_pregunta(pregunta: str, vendedor: str | None = None, nombre: str |
             indices_ronda_actual = set()
             for tool_call in mensaje.tool_calls:
                 args = json.loads(tool_call.function.arguments)
-                sql_generado = args.get("sql")
                 try:
-                    resultado = ejecutar_sql(sql_generado, vendedor=vendedor)
-                    filas_retornadas = resultado["num_filas"]
-                    ultimos_datos = resultado["filas"]
+                    if tool_call.function.name == "ejecutar_sql":
+                        sql_generado = args.get("sql")
+                        resultado = ejecutar_sql(sql_generado, vendedor=vendedor)
+                        filas_retornadas = resultado["num_filas"]
+                        ultimos_datos = resultado["filas"]
+                    elif tool_call.function.name == "buscar_documentos":
+                        resultado = buscar_documentos(args.get("consulta", ""), rol=rol)
+                    else:
+                        raise SqlToolError(f"Tool desconocida: {tool_call.function.name}")
                     contenido_tool = json.dumps(resultado, default=str)
                 except SqlToolError as e:
                     contenido_tool = json.dumps({"error": str(e)})

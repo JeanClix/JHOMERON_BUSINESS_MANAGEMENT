@@ -1,0 +1,154 @@
+<mxfile host="app.diagrams.net" modified="2026-09-19T00:00:00.000Z" agent="Claude Code" version="24.0.0" type="device">
+  <diagram name="Schemas BD JHOMERON" id="schemas-bd-jhomeron">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="2300" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ================= LEYENDA ================= -->
+        <mxCell id="legend" value="&lt;b&gt;Leyenda&lt;/b&gt;&lt;br&gt;&#9635; borde s&#243;lido = tabla real&lt;br&gt;&#9635; borde punteado = vista (view)&lt;br&gt;&#8594; l&#237;nea s&#243;lida = FK real / SELECT directo&lt;br&gt;&#8674; l&#237;nea punteada = acceso de solo lectura v&#237;a rol (ai_readonly / bi_readonly) o v&#237;nculo aplicativo (JWT)&lt;br&gt;Cada color = un schema distinto" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fillColor=#FFFFFF;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="760" y="40" width="300" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- ================= SCHEMA STAGING ================= -->
+        <mxCell id="schema_staging" value="&lt;b&gt;SCHEMA: staging&lt;/b&gt;&lt;br&gt;&lt;i&gt;&#193;rea de aterrizaje (landing zone) de datos crudos extra&#237;dos de SAP Business One / SQL Server v&#237;a el Batch ETL (sp_ExtraerVentas), antes de transformarlos al modelo estrella. Incluye watermark para idempotencia.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fontSize=14;fontStyle=1;spacingLeft=10;spacingTop=10;fillColor=#DAE8FC;strokeColor=#6C8EBF;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="340" height="460" as="geometry" />
+        </mxCell>
+        <mxCell id="st_pedidos" value="&lt;b&gt;staging.pedidos&lt;/b&gt;&lt;br&gt;PK id&lt;br&gt;cliente, producto, cantidad&lt;br&gt;fecha_pedido, source (SAP/CSV)&lt;br&gt;lote, estado&lt;br&gt;&lt;i&gt;(insumo para reentrenamiento ML)&lt;/i&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="st_ventas" value="&lt;b&gt;staging.ventas&lt;/b&gt;&lt;br&gt;PK id&lt;br&gt;fecha_contabilizacion, ruc, razon_social&lt;br&gt;empleado_venta, numero_articulo&lt;br&gt;cantidad, valor_unitario, total_venta_mn&lt;br&gt;departamento, ciudad, distrito&lt;br&gt;lote, estado" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="240" width="300" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="st_control" value="&lt;b&gt;staging.control_carga&lt;/b&gt;&lt;br&gt;PK id, job_name (UNIQUE)&lt;br&gt;fecha_hasta_procesada (watermark)&lt;br&gt;registros_extraidos" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="300" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ================= SCHEMA ADMIN (public) ================= -->
+        <mxCell id="schema_admin" value="&lt;b&gt;SCHEMA: public (Admin Service)&lt;/b&gt;&lt;br&gt;&lt;i&gt;Identidad y configuraci&#243;n del Admin Service: usuarios con rol ADMIN/GERENCIA/VENDEDOR, metas de venta y el v&#237;nculo (por nombre, deuda t&#233;cnica) con dwh.dim_vendedor. Registra telemetr&#237;a de uso de IA.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fontSize=14;fontStyle=1;spacingLeft=10;spacingTop=10;fillColor=#D5E8D4;strokeColor=#82B366;" vertex="1" parent="1">
+          <mxGeometry x="420" y="40" width="300" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="ad_usuarios" value="&lt;b&gt;usuarios&lt;/b&gt;&lt;br&gt;PK id, usuario (UNIQUE)&lt;br&gt;password (hash), nombre, rol&lt;br&gt;(ADMIN / GERENCIA / VENDEDOR)&lt;br&gt;meta_mensual, meta_semanal&lt;br&gt;vendedor_nombre_sap &lt;i&gt;(deuda t&#233;cnica: debe&lt;br&gt;copiarse igual a dwh.dim_vendedor.empleado_venta)&lt;/i&gt;&lt;br&gt;activo" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="440" y="140" width="260" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="ad_telemetria" value="&lt;b&gt;telemetria_ia&lt;/b&gt;&lt;br&gt;PK id&lt;br&gt;FK usuario_id &#8594; usuarios.id&lt;br&gt;accion, prompt, fecha" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="440" y="340" width="260" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ================= SCHEMA DWH ================= -->
+        <mxCell id="schema_dwh" value="&lt;b&gt;SCHEMA: dwh (Data Warehouse)&lt;/b&gt;&lt;br&gt;&lt;i&gt;Modelo estrella poblado por dwh.sp_cargar_modelo_estrella() desde staging.ventas. Dimensiones (tiempo, cliente, producto, vendedor, tipo doc) + tabla de hechos fact_ventas.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fontSize=14;fontStyle=1;spacingLeft=10;spacingTop=10;fillColor=#FFF2CC;strokeColor=#D6B656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="1020" height="520" as="geometry" />
+        </mxCell>
+        <mxCell id="dw_dim_tiempo" value="&lt;b&gt;dwh.dim_tiempo&lt;/b&gt;&lt;br&gt;PK fecha_id (YYYYMMDD)&lt;br&gt;fecha (UNIQUE), anio, mes, dia&lt;br&gt;trimestre, es_fin_semana" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="80" y="610" width="230" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="dw_dim_cliente" value="&lt;b&gt;dwh.dim_cliente&lt;/b&gt;&lt;br&gt;PK cliente_id&lt;br&gt;ruc (UNIQUE), razon_social&lt;br&gt;departamento, ciudad, distrito" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="80" y="740" width="230" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dw_dim_producto" value="&lt;b&gt;dwh.dim_producto&lt;/b&gt;&lt;br&gt;PK producto_id&lt;br&gt;numero_articulo (UNIQUE)&lt;br&gt;descripcion_articulo, unidad_medida" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="80" y="880" width="230" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="dw_fact" value="&lt;b&gt;dwh.fact_ventas&lt;/b&gt; (tabla de hechos)&lt;br&gt;PK fact_id&lt;br&gt;FK fecha_id, cliente_id, producto_id,&lt;br&gt;vendedor_id, tipo_id&lt;br&gt;cantidad, valor_unitario&lt;br&gt;total_venta_me, tipo_cambio, total_venta_mn&lt;br&gt;linea &lt;i&gt;(discrimina repetidos en la misma factura)&lt;/i&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;fontStyle=1;spacingLeft=6;spacingTop=4;fillColor=#FFE6CC;strokeColor=#D79B00;" vertex="1" parent="1">
+          <mxGeometry x="460" y="760" width="260" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="dw_dim_vendedor" value="&lt;b&gt;dwh.dim_vendedor&lt;/b&gt;&lt;br&gt;PK vendedor_id&lt;br&gt;empleado_venta (UNIQUE, nombre libre SAP)" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="790" y="610" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="dw_dim_tipo" value="&lt;b&gt;dwh.dim_tipo_doc&lt;/b&gt;&lt;br&gt;PK tipo_id&lt;br&gt;tipo (UNIQUE)" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="790" y="880" width="230" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ================= SCHEMA AI ================= -->
+        <mxCell id="schema_ai" value="&lt;b&gt;SCHEMA: ai&lt;/b&gt;&lt;br&gt;&lt;i&gt;Capa sem&#225;ntica de solo lectura para el AI Service (Text-to-SQL). Vistas de negocio sobre dwh.* con nombres claros para el LLM. Rol ai_readonly, solo SELECT. Audita cada pregunta/respuesta.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fontSize=14;fontStyle=1;spacingLeft=10;spacingTop=10;fillColor=#E1D5E7;strokeColor=#9673A6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1080" width="500" height="740" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_v_ventas" value="&lt;b&gt;ai.v_ventas&lt;/b&gt; (vista)&lt;br&gt;Ventas planas con nombres de negocio (cliente, producto, vendedor, fechas, total_soles) &#8212; join de fact_ventas + dimensiones" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1170" width="460" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_v_ventas_mes_dep" value="&lt;b&gt;ai.v_ventas_mensual_departamento&lt;/b&gt; (vista)&lt;br&gt;Agregado mensual de ventas por departamento &#8212; preguntas frecuentes de gerencia" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1270" width="460" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_v_ventas_vendedor" value="&lt;b&gt;ai.v_ventas_vendedor&lt;/b&gt; (vista)&lt;br&gt;Igual a v_ventas pero pre-filtrada por app.current_vendedor (claim JWT) &#8212; fail-closed; &#250;nica vista permitida para rol VENDEDOR" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1370" width="460" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_consulta_log" value="&lt;b&gt;ai.consulta_log&lt;/b&gt; (auditor&#237;a)&lt;br&gt;PK id&lt;br&gt;pregunta_usuario, vendedor, sql_generado&lt;br&gt;filas_retornadas, respuesta_llm, modelo&lt;br&gt;exito, error, duracion_ms, fecha" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1490" width="460" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_insight_mensual" value="&lt;b&gt;ai.insight_mensual&lt;/b&gt;&lt;br&gt;PK id, UNIQUE(anio,mes,orden)&lt;br&gt;categoria, impacto, titulo, resumen&lt;br&gt;recomendacion, widget_tipo, widget_payload&lt;br&gt;&lt;i&gt;(precalculado; dashboard gerencia lee de aqu&#237;, no llama al LLM en cada visita)&lt;/i&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1600" width="460" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_note_role" value="&lt;b&gt;Rol ai_readonly&lt;/b&gt;: SELECT sobre v_ventas / v_ventas_mensual_departamento / v_ventas_vendedor; INSERT en consulta_log e insight_mensual. Sin acceso directo a dwh.* / staging.*." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=10;fontStyle=2;spacingLeft=6;spacingTop=4;fillColor=#FFF9C4;strokeColor=#BFA100;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1720" width="460" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ================= SCHEMA BI ================= -->
+        <mxCell id="schema_bi" value="&lt;b&gt;SCHEMA: bi&lt;/b&gt;&lt;br&gt;&lt;i&gt;Capa sem&#225;ntica de solo lectura para el Reporting Service (dashboards deterministicos, sin LLM). Vistas separadas de ai.* a prop&#243;sito. Rol bi_readonly, solo SELECT.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fontSize=14;fontStyle=1;spacingLeft=10;spacingTop=10;fillColor=#F8CECC;strokeColor=#B85450;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1080" width="540" height="1100" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v1" value="&lt;b&gt;bi.v_ventas_vendedor_dia&lt;/b&gt; (vista)&lt;br&gt;Ventas diarias por vendedor &#8212; gr&#225;fico semanal y cumplimiento de cuota" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1170" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v2" value="&lt;b&gt;bi.v_vendedor_producto_mes&lt;/b&gt; (vista)&lt;br&gt;Ventas por vendedor+producto+mes &#8212; &quot;qu&#233; vendi&#243; m&#225;s/menos&quot;" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1270" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v3" value="&lt;b&gt;bi.v_vendedores&lt;/b&gt; (vista)&lt;br&gt;Vendedores del panel admin (nombre, vendedor_nombre_sap, metas) &#8212; no expone password" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1370" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v4" value="&lt;b&gt;bi.v_cliente_frecuencia&lt;/b&gt; (vista)&lt;br&gt;Frecuencia de compra por cliente (&#250;ltima compra, dias_desde_ultima_compra)" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1470" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v5" value="&lt;b&gt;bi.v_cliente_frecuencia_vendedor&lt;/b&gt; (vista)&lt;br&gt;Igual, acotada a un vendedor &#8212; &quot;mis clientes inactivos&quot;" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1570" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v6" value="&lt;b&gt;bi.v_cliente_productos_mes&lt;/b&gt; (vista)&lt;br&gt;Productos distintos comprados por cliente y mes &#8212; top gerencia" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1670" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v7" value="&lt;b&gt;bi.v_cliente_productos_mes_vendedor&lt;/b&gt; (vista)&lt;br&gt;Igual, acotada a un vendedor espec&#237;fico" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1770" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v8" value="&lt;b&gt;bi.v_producto_mes&lt;/b&gt; (vista)&lt;br&gt;Ventas por producto y mes a nivel empresa &#8212; Top Productos por Facturaci&#243;n" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1870" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_v9" value="&lt;b&gt;bi.v_ventas_departamento_mes&lt;/b&gt; (vista)&lt;br&gt;Ventas por departamento y mes &#8212; mapa de Per&#250; (gerencia)" style="rounded=0;dashed=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=11;spacingLeft=6;spacingTop=4;fillColor=#FFFFFF;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1970" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="bi_note_role" value="&lt;b&gt;Rol bi_readonly&lt;/b&gt;: SELECT sobre las 9 vistas bi.* listadas arriba. Sin acceso directo a dwh.* / staging.* / tabla usuarios." style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontSize=10;fontStyle=2;spacingLeft=6;spacingTop=4;fillColor=#FFF9C4;strokeColor=#BFA100;" vertex="1" parent="1">
+          <mxGeometry x="600" y="2070" width="500" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ================= RELACIONES ================= -->
+        <mxCell id="e_etl" value="ETL: dwh.sp_cargar_modelo_estrella() (Spring Batch)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="st_ventas" target="dw_fact">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fk1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="dw_dim_tiempo" target="dw_fact">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fk2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="dw_dim_cliente" target="dw_fact">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fk3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="dw_dim_producto" target="dw_fact">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fk4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="dw_dim_vendedor" target="dw_fact">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fk5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="dw_dim_tipo" target="dw_fact">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ai" value="vistas ai.* (rol ai_readonly, solo SELECT)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=block;fontSize=10;strokeColor=#9673A6;" edge="1" parent="1" source="dw_fact" target="schema_ai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_bi" value="vistas bi.* (rol bi_readonly, solo SELECT)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=block;fontSize=10;strokeColor=#B85450;" edge="1" parent="1" source="dw_fact" target="schema_bi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_vendedores" value="bi.v_vendedores: SELECT sobre usuarios (sin password)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="ad_usuarios" target="bi_v3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_jwt" value="JWT claim vendedorNombreSap &#8594; app.current_vendedor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=block;fontSize=10;strokeColor=#9673A6;" edge="1" parent="1" source="ad_usuarios" target="ai_v_ventas_vendedor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

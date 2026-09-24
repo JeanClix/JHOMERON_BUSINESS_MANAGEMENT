@@ -19,5 +19,18 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     reporting_base_url: str = "http://localhost:8093"
 
+    # Embeddings para la tool buscar_documentos (RAG sobre documentación
+    # empresarial). Puede ser un proveedor distinto al de chat (ej. hoy el
+    # chat corre en Groq, que no ofrece embeddings) -- si embedding_base_url
+    # / embedding_api_key no se configuran, se reusa el cliente de LLM_*.
+    embedding_model: str = "nvidia/nemotron-3-embed-1b"
+    embedding_base_url: str | None = None
+    embedding_api_key: str | None = None
+    # Dimensión del vector en rag.chunk.embedding (ver schema-rag.sql) -- si
+    # se cambia de modelo de embeddings con otra dimensión, hay que migrar
+    # la columna también.
+    embedding_dimensions: int = 2048
+    rag_tool_max_chunks: int = 6
+
 
 settings = Settings()

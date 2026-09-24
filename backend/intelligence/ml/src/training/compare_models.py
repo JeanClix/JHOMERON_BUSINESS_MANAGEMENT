@@ -138,7 +138,11 @@ def entrenar_y_registrar(nombre_modelo: str, n_rows: int, X_train, y_train, X_te
         if nombre_modelo == "xgboost":
             mlflow.xgboost.log_model(modelo, artifact_path="modelo")
         else:
-            mlflow.sklearn.log_model(modelo, artifact_path="modelo")
+            # MLflow 3.x serializa sklearn con skops y rechaza el Tree de
+            # RandomForest salvo que se lo declare confiable (lo entrenamos aquí).
+            mlflow.sklearn.log_model(
+                modelo, artifact_path="modelo", skops_trusted_types=["sklearn.tree._tree.Tree"]
+            )
 
         print(f"  {nombre_modelo:20s} n={n_rows:>7,}  test_MAE={metricas_test['mae']:>10,.2f}  "
               f"test_RMSE={metricas_test['rmse']:>10,.2f}  test_MAPE={metricas_test['mape']:.2%}")

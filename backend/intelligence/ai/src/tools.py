@@ -1,7 +1,8 @@
-"""Tool que el LLM puede invocar: ejecutar SQL de solo lectura sobre ai.v_*.
+"""Tools que el LLM puede invocar: `ejecutar_sql` (ventas, ai.v_*) y
+`buscar_documentos` (documentación institucional, rag.v_chunk_visible).
 
-Defensa en profundidad (además del rol Postgres ai_readonly, que ya impide
-escritura y acceso directo a dwh./staging.*):
+Defensa en profundidad de ejecutar_sql (además del rol Postgres ai_readonly,
+que ya impide escritura y acceso directo a dwh./staging.*):
   1. Solo se permite una única sentencia SELECT (se rechaza cualquier otra
      palabra clave de escritura o múltiples statements separados por ';').
   2. Se agrega LIMIT automáticamente si el LLM no lo puso, y se recorta si el
@@ -12,12 +13,38 @@ escritura y acceso directo a dwh./staging.*):
      _limitar_filas).
   3. Se corre con un timeout de statement para no colgar el servicio si el
      LLM genera una consulta pesada.
+
+buscar_documentos no necesita esa misma defensa (no ejecuta SQL generado por
+el LLM): la seguridad está en que solo puede leer rag.v_chunk_visible, que
+ya filtra por rol de sesión (ver schema-rag.sql).
 """
 import re
 import time
 
+from openai import OpenAI
+
 from .config import settings
 from .db import get_connection
+
+# Cliente separado para embeddings: el proveedor de chat (LLM_BASE_URL, hoy
+# Groq) puede no ofrecer embeddings -- si no se configuró EMBEDDING_BASE_URL/
+# EMBEDDING_APIKEY aparte, se reusa el mismo cliente/credencial de LLM_*.
+_embedding_client = OpenAI(
+    base_url=settings.embedding_base_url or settings.llm_base_url,
+    api_key=settings.embedding_api_key or settings.llm_api_key,
+)
+
+
+def embed_texto(texto: str, input_type: str) -> list[float]:
+    """`input_type` distingue 'query' (la pregunta del usuario) de 'passage'
+    (un chunk de documento al indexarlo) -- este modelo de NVIDIA es
+    asimétrico: usar el tipo equivocado degrada la calidad de la búsqueda."""
+    respuesta = _embedding_client.embeddings.create(
+        model=settings.embedding_model,
+        input=[texto],
+        extra_body={"input_type": input_type, "truncate": "END"},
+    )
+    return respuesta.data[0].embedding
 
 _FORBIDDEN = re.compile(
     r"\b(insert|update|delete|drop|alter|truncate|grant|revoke|create|call|copy)\b",
@@ -117,5 +144,59 @@ def ejecutar_sql(sql: str, vendedor: str | None = None) -> dict:
         "sql_ejecutado": sql_limpio,
         "filas": filas,
         "num_filas": len(filas),
+        "duracion_ms": duracion_ms,
+    }
+
+
+def build_rag_tool_schema() -> dict:
+    return {
+        "type": "function",
+        "function": {
+            "name": "buscar_documentos",
+            "description": (
+                "Busca en la documentación institucional de la empresa (misión/visión, "
+                "catálogo de productos, políticas, términos y condiciones, procesos internos) "
+                "fragmentos relevantes para la pregunta. Úsala para preguntas que NO son sobre "
+                "datos de ventas -- disponible para cualquier rol de usuario."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "consulta": {
+                        "type": "string",
+                        "description": "La pregunta del usuario o los términos de búsqueda.",
+                    }
+                },
+                "required": ["consulta"],
+            },
+        },
+    }
+
+
+def buscar_documentos(consulta: str, rol: str) -> dict:
+    """Recuperación semántica sobre rag.v_chunk_visible -- esa vista ya
+    filtra por el rol fijado en app.current_role (fail-closed si no se
+    fija), igual criterio que app.current_vendedor para ejecutar_sql."""
+    embedding = embed_texto(consulta, input_type="query")
+
+    inicio = time.monotonic()
+    with get_connection() as conn:
+        conn.execute("SELECT set_config('app.current_role', %s, true)", (rol,))
+        conn.execute("SET statement_timeout = '5000ms'")
+        cur = conn.execute(
+            """
+            SELECT titulo, categoria, contenido
+            FROM rag.v_chunk_visible
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s
+            """,
+            (embedding, settings.rag_tool_max_chunks),
+        )
+        filas = cur.fetchall()
+    duracion_ms = int((time.monotonic() - inicio) * 1000)
+
+    return {
+        "fragmentos": filas,
+        "num_fragmentos": len(filas),
         "duracion_ms": duracion_ms,
     }
