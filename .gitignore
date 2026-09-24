@@ -15,3 +15,6 @@ mlruns/
 # Artefactos de Python compilados (se regeneran al correr cada servicio)
 __pycache__/
 *.pyc
+
+# Trazas de tiempos del chat (ver backend/intelligence/ai/src/tiempos.py)
+backend/intelligence/ai/logs/

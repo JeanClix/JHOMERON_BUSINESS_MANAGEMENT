@@ -11,17 +11,21 @@ import time
 from datetime import date
 from pathlib import Path
 
-from openai import APIStatusError, OpenAI
+from openai import APIConnectionError, APIStatusError, OpenAI
 
 from .config import settings
 from .tools import SqlToolError, build_rag_tool_schema, build_sql_tool_schema, buscar_documentos, ejecutar_sql
 from .audit import registrar_consulta
+from .tiempos import TrazaTiempos
 
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 _SYSTEM_PROMPT_EMPRESA = (_PROMPTS_DIR / "system_prompt.md").read_text(encoding="utf-8")
 _SYSTEM_PROMPT_VENDEDOR = (_PROMPTS_DIR / "system_prompt_vendedor.md").read_text(encoding="utf-8")
 
-_client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key)
+# max_retries=0: los reintentos los hace _completar_con_reintento. Con los
+# del SDK (2 por defecto) un 429 de Groq se dormía en silencio 12-31 s dentro
+# de la llamada y la traza de tiempos lo veía como "LLM lento".
+_client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key, max_retries=0)
 
 MAX_TOOL_ROUNDS = 6
 
@@ -46,6 +50,7 @@ def _fecha_hoy_es() -> str:
 
 _RATE_LIMIT_REINTENTOS = 3
 _RATE_LIMIT_ESPERA_S = 8
+_RATE_LIMIT_ESPERA_MAX_S = 60
 
 
 def _es_rate_limit(e: APIStatusError) -> bool:
@@ -77,17 +82,45 @@ def _podar_resultados_antiguos(mensajes: list[dict], indices_a_mantener: set[int
             m["content"] = _PLACEHOLDER_RONDA_ANTERIOR
 
 
-def _completar_con_reintento(**kwargs):
-    """Reintenta con backoff cuando el LLM devuelve rate limit (TPM) --
-    la ventana de Groq es por minuto, así que un par de segundos de espera
-    suele bastar para que la siguiente llamada entre dentro del cupo."""
+def _espera_rate_limit_s(e: APIStatusError, intento: int) -> float:
+    """Lo que pide el proveedor en `retry-after` (Groq lo manda con la
+    cuenta exacta hasta que se libera cupo); si no viene, backoff lineal."""
+    try:
+        return min(float(e.response.headers.get("retry-after")), _RATE_LIMIT_ESPERA_MAX_S)
+    except (TypeError, ValueError):
+        return _RATE_LIMIT_ESPERA_S * (intento + 1)
+
+
+def _completar_con_reintento(ronda: dict | None = None, **kwargs):
+    """Reintenta cuando el LLM devuelve rate limit (TPM), esperando lo que
+    indique el proveedor -- la ventana de Groq es por minuto. También
+    reintenta errores transitorios (red, 5xx), como hacía el SDK antes de
+    max_retries=0.
+
+    `ronda` (ver tiempos.py) acumula por separado el tiempo en llamadas al
+    LLM (incluidas las que fallan por rate limit) y el tiempo dormido
+    esperando para reintentar."""
     for intento in range(_RATE_LIMIT_REINTENTOS + 1):
+        desde = time.monotonic()
         try:
-            return _client.chat.completions.create(**kwargs)
-        except APIStatusError as e:
-            if intento == _RATE_LIMIT_REINTENTOS or not _es_rate_limit(e):
+            respuesta = _client.chat.completions.create(**kwargs)
+            if ronda is not None:
+                ronda["llm_ms"] += int((time.monotonic() - desde) * 1000)
+                TrazaTiempos.registrar_uso(ronda, respuesta)
+            return respuesta
+        except (APIStatusError, APIConnectionError) as e:
+            if ronda is not None:
+                ronda["llm_ms"] += int((time.monotonic() - desde) * 1000)
+            es_rate_limit = isinstance(e, APIStatusError) and _es_rate_limit(e)
+            es_transitorio = isinstance(e, APIConnectionError) or e.status_code >= 500
+            if intento == _RATE_LIMIT_REINTENTOS or not (es_rate_limit or es_transitorio):
                 raise
-            time.sleep(_RATE_LIMIT_ESPERA_S * (intento + 1))
+            espera_s = _espera_rate_limit_s(e, intento) if es_rate_limit else intento + 1
+            if ronda is not None:
+                ronda["reintentos"] += 1
+                if es_rate_limit:
+                    ronda["espera_rate_limit_ms"] += int(espera_s * 1000)
+            time.sleep(espera_s)
 
 
 def responder_pregunta(
@@ -133,6 +166,7 @@ def responder_pregunta(
         *[{"role": m["role"], "content": m["content"]} for m in historial_acotado if m.get("role") in ("user", "assistant")],
         {"role": "user", "content": pregunta},
     ]
+    traza = TrazaTiempos(pregunta, rol, historial_mensajes=len(historial_acotado))
 
     sql_generado = None
     filas_retornadas = None
@@ -149,7 +183,9 @@ def responder_pregunta(
 
     try:
         for _ in range(MAX_TOOL_ROUNDS):
+            ronda = traza.nueva_ronda()
             respuesta = _completar_con_reintento(
+                ronda,
                 model=settings.llm_model,
                 messages=mensajes,
                 tools=[sql_tool_schema, rag_tool_schema],
@@ -175,6 +211,7 @@ def responder_pregunta(
                     error=None,
                     duracion_ms=duracion_ms,
                 )
+                traza.cerrar(exito=True)
                 return {
                     "respuesta": texto_final,
                     "sql_generado": sql_generado,
@@ -186,6 +223,8 @@ def responder_pregunta(
             indices_ronda_actual = set()
             for tool_call in mensaje.tool_calls:
                 args = json.loads(tool_call.function.arguments)
+                desde_tool = time.monotonic()
+                tool_con_error = False
                 try:
                     if tool_call.function.name == "ejecutar_sql":
                         sql_generado = args.get("sql")
@@ -199,6 +238,8 @@ def responder_pregunta(
                     contenido_tool = json.dumps(resultado, default=str)
                 except SqlToolError as e:
                     contenido_tool = json.dumps({"error": str(e)})
+                    tool_con_error = True
+                TrazaTiempos.registrar_tool(ronda, tool_call.function.name, desde_tool, tool_con_error)
 
                 mensajes.append({
                     "role": "tool",
@@ -233,4 +274,5 @@ def responder_pregunta(
             error=str(e),
             duracion_ms=duracion_ms,
         )
+        traza.cerrar(exito=False, error=str(e))
         raise

@@ -32,5 +32,10 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 2048
     rag_tool_max_chunks: int = 6
 
+    # Traza de tiempos por pregunta del chat (ver tiempos.py), una línea
+    # JSON por request. Vacío = no se escribe archivo (el resumen por
+    # consola se imprime igual).
+    tiempos_log_path: str = "logs/tiempos_chat.jsonl"
+
 
 settings = Settings()
