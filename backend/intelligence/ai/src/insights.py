@@ -24,7 +24,7 @@ from datetime import date
 
 import httpx
 
-from .config import settings
+from .config import opciones_llm, settings
 from .db import get_connection
 
 _ML_SERVICE_URL = "http://localhost:8091"
@@ -298,7 +298,7 @@ def generar_insights(anio: int | None = None, mes: int | None = None) -> list[di
         # Igual que en agent.py: algunos modelos consumen parte del
         # presupuesto en razonamiento antes del JSON final -- con poco
         # margen la respuesta queda truncada a mitad del array.
-        max_tokens=2048,
+        **opciones_llm(2048),
     )
     elegidas = _extraer_json(respuesta.choices[0].message.content or "[]")[:3]
 

@@ -11,7 +11,7 @@ import time
 from openai import OpenAI
 
 from .audit import registrar_consulta
-from .config import settings
+from .config import opciones_llm, settings
 
 _client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key)
 
@@ -62,7 +62,7 @@ def generar_recomendaciones(vendedor: str, clientes: list[dict]) -> list[dict]:
                 {"role": "system", "content": _PROMPT_SISTEMA},
                 {"role": "user", "content": entrada},
             ],
-            max_tokens=1536,
+            **opciones_llm(1536),
         )
         respuesta_llm = respuesta.choices[0].message.content or ""
         parsed = json.loads(_extraer_json(respuesta_llm))

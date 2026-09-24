@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     llm_api_key: str = "ollama"
     llm_model: str = "llama3.1"
     sql_tool_max_rows: int = 40
+    # Esfuerzo de razonamiento para modelos que lo soportan (OpenAI GPT-5.x:
+    # none/low/medium/high...). Vacío = no se manda y el modelo usa su
+    # default. Groq/xAI lo ignoran o no lo necesitan -- dejarlo vacío ahí.
+    llm_reasoning_effort: str | None = None
 
     # Para /recomendaciones/reactivacion: valida el JWT emitido por admin
     # (MISMO valor que JWT_SECRET en backend/admin y backend/reporting) y
@@ -58,3 +62,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def opciones_llm(max_tokens: int) -> dict:
+    """Parámetros comunes a toda llamada de chat al LLM. Se usa
+    `max_completion_tokens` (no `max_tokens`): los modelos con razonamiento
+    de OpenAI rechazan `max_tokens` (Groq acepta ambos, verificado). El límite
+    incluye los tokens de razonamiento, por eso los valores son holgados.
+    `reasoning_effort` va por extra_body porque el SDK fijado (openai 1.51)
+    todavía no lo tiene como parámetro propio."""
+    opciones: dict = {"max_completion_tokens": max_tokens}
+    if settings.llm_reasoning_effort:
+        opciones["extra_body"] = {"reasoning_effort": settings.llm_reasoning_effort}
+    return opciones

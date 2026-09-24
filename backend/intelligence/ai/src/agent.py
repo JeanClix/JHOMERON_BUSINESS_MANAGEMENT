@@ -14,7 +14,7 @@ from pathlib import Path
 
 from openai import APIConnectionError, APIStatusError, OpenAI
 
-from .config import settings
+from .config import opciones_llm, settings
 from .tools import SqlToolError, build_rag_tool_schema, build_sql_tool_schema, buscar_documentos, ejecutar_sql
 from .audit import registrar_consulta
 from .enrutador import RUTA_FUERA_DE_TEMA, TOOL_DOCUMENTOS, TOOL_SQL, enrutar
@@ -248,7 +248,7 @@ def responder_pregunta(
                 # Algunos modelos (ej. deepseek con "thinking") consumen parte del
                 # presupuesto en razonamiento antes del contenido final; con poco
                 # margen la respuesta queda vacía. Se deja margen amplio.
-                max_tokens=2048,
+                **opciones_llm(4096),
             )
             mensaje = respuesta.choices[0].message
             mensajes.append(mensaje.model_dump(exclude_none=True))
