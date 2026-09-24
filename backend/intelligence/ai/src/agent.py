@@ -25,6 +25,13 @@ _client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key)
 
 MAX_TOOL_ROUNDS = 6
 
+# Mensajes previos (user+assistant, sin contar tool calls) que se reenvian al
+# LLM como contexto de la conversacion -- ver responder_pregunta(). Un numero
+# chico porque cada mensaje viejo ya "gasto" su presupuesto de tokens una vez;
+# 8 mensajes (~4 turnos) alcanza para que el asistente recuerde de que se
+# viene hablando sin arrastrar una conversacion entera cada vez.
+_HISTORIAL_MAX_MENSAJES = 8
+
 _MESES_ES = [
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
     "julio", "agosto", "setiembre", "octubre", "noviembre", "diciembre",
@@ -84,7 +91,11 @@ def _completar_con_reintento(**kwargs):
 
 
 def responder_pregunta(
-    pregunta: str, rol: str, vendedor: str | None = None, nombre: str | None = None
+    pregunta: str,
+    rol: str,
+    vendedor: str | None = None,
+    nombre: str | None = None,
+    historial: list[dict] | None = None,
 ) -> dict:
     """`vendedor` viene del claim `vendedorNombreSap` del JWT (nunca de un
     parámetro que mande el cliente) -- ver main.py/auth.py. Si es None, quien
@@ -95,7 +106,16 @@ def responder_pregunta(
     `vendedor`, buscar_documentos lo necesita siempre (los tres roles pueden
     consultar documentos, no solo VENDEDOR). `nombre` es el claim `name` del
     JWT (nombre real de la persona), solo para que el LLM salude por su
-    nombre -- nunca se usa para autorización."""
+    nombre -- nunca se usa para autorización.
+
+    `historial` son los mensajes previos de ESTA conversación (lista de
+    {"role": "user"|"assistant", "content": str}, más viejo primero, sin el
+    mensaje actual) -- el frontend los manda porque cada request a /chat es
+    stateless para este servicio (no guarda sesión); sin esto el asistente no
+    tiene memoria de lo que ya se habló y cada pregunta se resuelve aislada.
+    Se limitan a las últimas N (ver _HISTORIAL_MAX_MENSAJES) para no inflar
+    el presupuesto de tokens del LLM con una conversación larga.
+    """
     inicio = time.monotonic()
     if vendedor:
         system_prompt = _SYSTEM_PROMPT_VENDEDOR.replace(
@@ -106,8 +126,11 @@ def responder_pregunta(
     system_prompt = system_prompt.replace("{{FECHA_HOY}}", _fecha_hoy_es())
     sql_tool_schema = build_sql_tool_schema(vendedor)
     rag_tool_schema = build_rag_tool_schema()
+
+    historial_acotado = (historial or [])[-_HISTORIAL_MAX_MENSAJES:]
     mensajes = [
         {"role": "system", "content": system_prompt},
+        *[{"role": m["role"], "content": m["content"]} for m in historial_acotado if m.get("role") in ("user", "assistant")],
         {"role": "user", "content": pregunta},
     ]
 

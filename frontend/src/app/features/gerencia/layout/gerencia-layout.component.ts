@@ -92,7 +92,7 @@ export class GerenciaLayoutComponent {
         },
         {
           id: 'documentacion',
-          label: 'Base Conocimiento DeepWiki',
+          label: 'Base de Conocimiento',
           route: '/gerencia/documentacion',
           icon: 'fa-solid fa-book-bookmark',
           badge: 'Docs',

@@ -48,8 +48,17 @@ app.add_middleware(
 )
 
 
+class MensajeHistorial(BaseModel):
+    role: str
+    content: str
+
+
 class PreguntaRequest(BaseModel):
     pregunta: str
+    # Mensajes previos de esta conversación (más viejo primero, sin incluir
+    # `pregunta`) -- ver comentario en agent.responder_pregunta. Opcional:
+    # una primera pregunta de una conversación nueva no manda nada.
+    historial: list[MensajeHistorial] = []
 
 
 class RespuestaResponse(BaseModel):
@@ -81,7 +90,11 @@ def chat(
     que saluda el asistente, nunca para autorización."""
     try:
         return responder_pregunta(
-            request.pregunta, rol=claims.get("role"), vendedor=vendedor, nombre=claims.get("name")
+            request.pregunta,
+            rol=claims.get("role"),
+            vendedor=vendedor,
+            nombre=claims.get("name"),
+            historial=[m.model_dump() for m in request.historial],
         )
     except APIStatusError as e:
         if _es_rate_limit(e):

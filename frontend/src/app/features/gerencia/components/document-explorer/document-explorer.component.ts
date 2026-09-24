@@ -14,7 +14,7 @@ import { BusinessDocument } from '../../../../core/models/document.model';
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
             <i class="fa-solid fa-book-bookmark text-[#0d3393]"></i>
-            Base de Conocimiento DeepWiki
+            Base de Conocimiento
           </h3>
           <span class="text-[10px] font-bold bg-[#0d3393]/10 text-[#0d3393] px-2 py-0.5 rounded">
             {{ filteredDocuments().length }} docs

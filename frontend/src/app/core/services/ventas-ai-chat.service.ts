@@ -82,6 +82,13 @@ export class VentasAiChatService {
     const trimmed = pregunta.trim();
     if (!trimmed || this.isLoading()) return;
 
+    // Se captura ANTES de agregar el mensaje nuevo -- es lo que ya se habló,
+    // sin incluir la pregunta actual (ver AiChatRequest.historial). Los
+    // mensajes de error no se mandan de vuelta al LLM, no aportan contexto real.
+    const historial = this.messagesSignal()
+      .filter((m) => !m.isError)
+      .map((m) => ({ role: m.sender, content: m.content }));
+
     this.messagesSignal.update((msgs) => [
       ...msgs,
       { id: `usr-${Date.now()}`, sender: 'user', content: trimmed, timestamp: this.now() }
@@ -92,7 +99,7 @@ export class VentasAiChatService {
       const respuesta = await firstValueFrom(
         this.http.post<AiChatApiResponse>(
           `${AI_SERVICE_BASE_URL}/chat`,
-          { pregunta: trimmed },
+          { pregunta: trimmed, historial },
           { headers: this.authHeaders() }
         )
       );

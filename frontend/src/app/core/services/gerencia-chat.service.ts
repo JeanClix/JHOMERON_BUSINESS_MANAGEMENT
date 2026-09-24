@@ -6,7 +6,6 @@ import { AI_SERVICE_BASE_URL } from '../config/ai-service.config';
 import { AiChatApiResponse } from '../models/ai-service.model';
 import { AiAnalysisResponse, ProcessingStage, ChatMessage, ChatPresetPrompt } from '../models/chat.model';
 import { InsightCard } from '../models/insight.model';
-import { buildChartFromDatos } from '../utils/chart-from-datos';
 import { AuthService } from './auth.service';
 
 /**
@@ -105,9 +104,14 @@ export class GerenciaChatService {
   }
 
   /**
-   * Envía la pregunta al AI Service real y navega a la vista de análisis
-   * mientras se resuelve. El resumen del dashboard (si hay uno cargado) va
-   * antepuesto a la pregunta del usuario, nunca reemplazándola.
+   * Punto de entrada único para "hacerle una pregunta a gerencia" desde
+   * cualquier lado (barra de chat sticky, chips de preguntas frecuentes,
+   * botones "explicar" de las tarjetas del dashboard): navega a la
+   * conversación real (/gerencia/chat) y la manda por sendMessage(), que ya
+   * mantiene el historial de la charla -- antes esto navegaba a
+   * /gerencia/analisis y usaba un "slot" de una sola respuesta que se
+   * reemplazaba en cada pregunta nueva, lo que hacía parecer que el chat
+   * "se reiniciaba" y perdía el contexto de lo ya hablado.
    */
   async submitQuery(queryText: string): Promise<void> {
     const trimmed = queryText.trim();
@@ -117,46 +121,12 @@ export class GerenciaChatService {
       this.queryHistory.update(history => [trimmed, ...history]);
     }
 
-    this.processingStage.set('analyzing_query');
-    this.processingMessage.set('🤖 Analizando consulta...');
-    this.router.navigate(['/gerencia/analisis']);
-
-    this.processingStage.set('fetching_data');
-    this.processingMessage.set('🤖 Consultando el Data Warehouse...');
-
-    const timestamp = this.now();
-    try {
-      const respuesta = await firstValueFrom(
-        this.http.post<AiChatApiResponse>(
-          `${AI_SERVICE_BASE_URL}/chat`,
-          { pregunta: this.buildPreguntaConContexto(trimmed) },
-          { headers: this.authHeaders() }
-        )
-      );
-
-      this.processingStage.set('generating_visualization');
-      this.processingMessage.set('🤖 Generando visualización...');
-
-      const chart = buildChartFromDatos(respuesta.datos) ?? undefined;
-      this.activeAnalysis.set({
-        id: `analysis-${Date.now()}`,
-        query: trimmed,
-        timestamp,
-        summary: respuesta.respuesta,
-        chart
-      });
-      this.processingStage.set('completed');
-      this.processingMessage.set('✓ Análisis completado');
-    } catch (err: any) {
-      this.activeAnalysis.set({
-        id: `analysis-${Date.now()}`,
-        query: trimmed,
-        timestamp,
-        summary: this.mensajeError(err)
-      });
-      this.processingStage.set('completed');
-      this.processingMessage.set('✗ Error consultando el asistente');
-    }
+    this.router.navigate(['/gerencia/chat']);
+    // sendMessage() ya antepone el contexto del dashboard (buildPreguntaConContexto)
+    // antes de mandar la pregunta al AI Service -- acá solo se pasa el texto
+    // visible, para que la burbuja del chat muestre la pregunta tal cual la
+    // escribió el usuario, no el contexto interno que viaja aparte.
+    await firstValueFrom(this.sendMessage(trimmed));
   }
 
   /**
@@ -195,6 +165,14 @@ export class GerenciaChatService {
    */
   sendMessage(userQuery: string): Observable<ChatMessage> {
     const trimmed = userQuery.trim();
+
+    // Ver AiChatRequest.historial -- se captura ANTES de agregar el mensaje
+    // nuevo, y se excluye el saludo inicial (no es un turno real de la
+    // conversación, es un mensaje fijo de bienvenida).
+    const historial = this.messagesSignal()
+      .filter((m) => !m.id.startsWith('msg-welcome'))
+      .map((m) => ({ role: m.sender, content: m.content }));
+
     const userMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
       sender: 'user',
@@ -210,7 +188,7 @@ export class GerenciaChatService {
         const respuesta = await firstValueFrom(
           this.http.post<AiChatApiResponse>(
             `${AI_SERVICE_BASE_URL}/chat`,
-            { pregunta: this.buildPreguntaConContexto(trimmed) },
+            { pregunta: this.buildPreguntaConContexto(trimmed), historial },
             { headers: this.authHeaders() }
           )
         );

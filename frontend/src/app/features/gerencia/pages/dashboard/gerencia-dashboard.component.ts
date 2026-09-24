@@ -69,30 +69,47 @@ import { PrediccionProximoMes, ProductoProyectado } from '../../../../core/model
         </div>
       }
 
-      <!-- Filtro de mes -->
-      <div class="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 border border-slate-200 shadow-sm">
-        <div class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-          <i class="fa-solid fa-calendar-days text-[#0d3393]"></i>
-          <span>Período del reporte</span>
-          @if (cargandoReporte()) {
-            <i class="fa-solid fa-circle-notch fa-spin text-[#0d3393] ml-1"></i>
-          }
-        </div>
+      <!-- Filtro de período: mes / año + navegación (mismo patrón que el dashboard de Vendedores) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border border-slate-200 shadow-sm">
         <div class="flex items-center gap-2">
           <button
-            (click)="mesAnterior()"
-            [disabled]="!puedeMesAnterior()"
+            (click)="setPeriodoModo('mes')"
+            [class]="
+              'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ' +
+              (periodoModo() === 'mes' ? 'bg-[#0d3393] text-white' : 'bg-slate-200 text-slate-700')
+            "
+          >
+            Por Mes
+          </button>
+          <button
+            (click)="setPeriodoModo('anio')"
+            [class]="
+              'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ' +
+              (periodoModo() === 'anio' ? 'bg-[#0d3393] text-white' : 'bg-slate-200 text-slate-700')
+            "
+          >
+            Por Año
+          </button>
+          @if (cargandoReporte()) {
+            <i class="fa-solid fa-circle-notch fa-spin text-[#0d3393] text-sm ml-1"></i>
+          }
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            (click)="periodoAnterior()"
+            [disabled]="!puedePeriodoAnterior()"
             class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
-            [title]="puedeMesAnterior() ? 'Mes anterior' : 'No hay datos antes de este mes'"
+            [title]="puedePeriodoAnterior() ? 'Período anterior' : 'No hay datos antes de este período'"
           >
             <i class="fa-solid fa-chevron-left text-xs"></i>
           </button>
           <span class="text-xs font-bold text-slate-900 min-w-[10rem] text-center">{{ periodoLabel() }}</span>
           <button
-            (click)="mesSiguiente()"
-            [disabled]="!puedeMesSiguiente()"
+            (click)="periodoSiguiente()"
+            [disabled]="!puedePeriodoSiguiente()"
             class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
-            [title]="puedeMesSiguiente() ? 'Mes siguiente' : 'Ese mes todavía no comienza'"
+            [title]="puedePeriodoSiguiente() ? 'Período siguiente' : 'Ese período todavía no comienza'"
           >
             <i class="fa-solid fa-chevron-right text-xs"></i>
           </button>
@@ -396,37 +413,66 @@ export class GerenciaDashboardComponent {
     return primerDiaMesSiguiente <= this.hoy;
   });
 
+  protected readonly puedeAnioAnterior = computed(() => this.filtroAnio() > this.limiteInferiorDatos.getFullYear());
+  protected readonly puedeAnioSiguiente = computed(() => this.filtroAnio() < this.hoy.getFullYear());
+
+  // Genéricas que usa el template (una sola flecha, según el modo activo).
+  protected readonly puedePeriodoAnterior = computed(() =>
+    this.periodoModo() === 'anio' ? this.puedeAnioAnterior() : this.puedeMesAnterior()
+  );
+  protected readonly puedePeriodoSiguiente = computed(() =>
+    this.periodoModo() === 'anio' ? this.puedeAnioSiguiente() : this.puedeMesSiguiente()
+  );
+
+
   protected readonly cargandoReporte = signal<boolean>(true);
   protected readonly errorReporte = signal<string | null>(null);
 
   protected readonly tendenciaAnio = signal<VentasMes[]>([]);
+  // Solo se llena en modo "año" (ver cargarReportePeriodo) -- año anterior
+  // completo, para poder comparar el total del año contra el anterior.
+  protected readonly tendenciaAnioAnterior = signal<VentasMes[]>([]);
   protected readonly topProductos = signal<ProductoGerencia[]>([]);
   protected readonly topClientes = signal<ClienteTopGerencia[]>([]);
   protected readonly departamentos = signal<DepartamentoVentas[]>([]);
   protected readonly ticketPromedioActual = signal<number | null>(null);
   protected readonly ticketPromedioAnterior = signal<number | null>(null);
 
+  // Igual que en el dashboard de Vendedores (ver ventas.component.ts):
+  // "mes" compara contra el mes anterior, "año" contra el año anterior --
+  // son dos vistas independientes del mismo período, no un dato adicional.
+  protected readonly periodoModo = signal<'mes' | 'anio'>('mes');
+
   protected readonly periodoLabel = computed(() => {
+    if (this.periodoModo() === 'anio') return `${this.filtroAnio()}`;
     const fecha = new Date(this.filtroAnio(), this.filtroMes() - 1, 1);
     const texto = fecha.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
     return texto.charAt(0).toUpperCase() + texto.slice(1);
   });
 
-  private readonly ventasMesActual = computed(
-    () => this.tendenciaAnio().find((m) => m.mes === this.filtroMes())?.total_soles ?? 0
-  );
+  private readonly ventasPeriodoActual = computed(() => {
+    if (this.periodoModo() === 'anio') {
+      return this.tendenciaAnio().reduce((acc, m) => acc + m.total_soles, 0);
+    }
+    return this.tendenciaAnio().find((m) => m.mes === this.filtroMes())?.total_soles ?? 0;
+  });
 
-  // null cuando el mes anterior cae en otro año (enero) -- la tendencia solo
-  // trae el anio filtrado, evitar un segundo fetch para ese caso borde.
-  private readonly ventasMesAnterior = computed<number | null>(() => {
+  // null cuando no hay con qué comparar: en modo mes, si el mes anterior cae
+  // en otro año (enero); en modo año, si todavía no se cargó el año anterior.
+  private readonly ventasPeriodoAnterior = computed<number | null>(() => {
+    if (this.periodoModo() === 'anio') {
+      const meses = this.tendenciaAnioAnterior();
+      return meses.length ? meses.reduce((acc, m) => acc + m.total_soles, 0) : null;
+    }
     if (this.filtroMes() === 1) return null;
     return this.tendenciaAnio().find((m) => m.mes === this.filtroMes() - 1)?.total_soles ?? null;
   });
 
   protected readonly kpis = computed<KpiMetric[]>(() => {
-    const ventasActual = this.ventasMesActual();
-    const ventasAnterior = this.ventasMesAnterior();
+    const ventasActual = this.ventasPeriodoActual();
+    const ventasAnterior = this.ventasPeriodoAnterior();
     const ventasCambio = this.calcularCambioPorcentual(ventasActual, ventasAnterior);
+    const etiquetaComparacion = this.periodoModo() === 'anio' ? 'vs año anterior' : 'vs mes anterior';
 
     const ticketActual = this.ticketPromedioActual();
     const ticketAnterior = this.ticketPromedioAnterior();
@@ -435,14 +481,14 @@ export class GerenciaDashboardComponent {
     return [
       {
         id: 'kpi-ventas-mes',
-        title: 'Ventas Mensuales Totales',
+        title: this.periodoModo() === 'anio' ? 'Ventas del Año' : 'Ventas Mensuales Totales',
         value: `S/ ${this.formatoMiles(ventasActual)}`,
         subtitle: this.periodoLabel(),
         numericValue: ventasActual,
         unit: 'S/',
         changePercent: ventasCambio.valor,
         changeType: ventasCambio.tipo,
-        comparisonLabel: ventasCambio.tipo === 'neutral' ? 'sin comparación disponible' : 'vs mes anterior',
+        comparisonLabel: ventasCambio.tipo === 'neutral' ? 'sin comparación disponible' : etiquetaComparacion,
         icon: 'fa-solid fa-chart-line',
         colorTheme: 'blue'
       },
@@ -450,12 +496,12 @@ export class GerenciaDashboardComponent {
         id: 'kpi-ticket-promedio',
         title: 'Ticket Promedio por Cliente',
         value: ticketActual !== null ? `S/ ${this.formatoMiles(ticketActual)}` : '—',
-        subtitle: 'Promedio de venta por cliente en el mes',
+        subtitle: this.periodoModo() === 'anio' ? 'Promedio de venta por cliente en el año' : 'Promedio de venta por cliente en el mes',
         numericValue: ticketActual ?? 0,
         unit: 'S/',
         changePercent: ticketCambio.valor,
         changeType: ticketCambio.tipo,
-        comparisonLabel: ticketCambio.tipo === 'neutral' ? 'sin comparación disponible' : 'vs mes anterior',
+        comparisonLabel: ticketCambio.tipo === 'neutral' ? 'sin comparación disponible' : etiquetaComparacion,
         icon: 'fa-solid fa-receipt',
         colorTheme: 'amber'
       },
@@ -553,15 +599,32 @@ export class GerenciaDashboardComponent {
     });
   }
 
-  protected mesAnterior() {
-    if (!this.puedeMesAnterior()) return;
-    this.moverMes(-1);
+  /** Cambia entre filtrar por mes o por año completo -- igual que el toggle
+   * "Por Mes / Por Semana" del dashboard de Vendedores, cada modo trae sus
+   * propios datos (ver cargarReportePeriodo). */
+  protected setPeriodoModo(modo: 'mes' | 'anio') {
+    if (this.periodoModo() === modo) return;
+    this.periodoModo.set(modo);
     this.cargarReportePeriodo();
   }
 
-  protected mesSiguiente() {
-    if (!this.puedeMesSiguiente()) return;
-    this.moverMes(1);
+  protected periodoAnterior() {
+    if (!this.puedePeriodoAnterior()) return;
+    if (this.periodoModo() === 'anio') {
+      this.filtroAnio.update((a) => a - 1);
+    } else {
+      this.moverMes(-1);
+    }
+    this.cargarReportePeriodo();
+  }
+
+  protected periodoSiguiente() {
+    if (!this.puedePeriodoSiguiente()) return;
+    if (this.periodoModo() === 'anio') {
+      this.filtroAnio.update((a) => a + 1);
+    } else {
+      this.moverMes(1);
+    }
     this.cargarReportePeriodo();
   }
 
@@ -632,21 +695,27 @@ export class GerenciaDashboardComponent {
     this.cargandoReporte.set(true);
     try {
       const anio = this.filtroAnio();
-      const mes = this.filtroMes();
-      const mesAnteriorInfo = this.mesAnteriorDe(anio, mes);
+      const esAnio = this.periodoModo() === 'anio';
+      // mes=undefined -> los endpoints agregan todo el año (ver
+      // backend/reporting/src/routers/gerencia.py y ReportingService).
+      const mes = esAnio ? undefined : this.filtroMes();
+      const mesAnteriorInfo = esAnio ? null : this.mesAnteriorDe(anio, this.filtroMes());
 
-      const [productos, clientes, deps, ticket, ticketAnterior, tendencia] = await Promise.all([
+      const [productos, clientes, deps, ticket, ticketAnterior, tendencia, tendenciaAnterior] = await Promise.all([
         this.reportingService.getTopProductosGerencia(anio, mes, 'desc', 6),
         this.reportingService.getTopClientesGerencia(anio, mes, 6),
         this.reportingService.getMapaDepartamentos(anio, mes),
         this.reportingService.getTicketPromedio(anio, mes),
-        mesAnteriorInfo
-          ? this.reportingService.getTicketPromedio(mesAnteriorInfo.anio, mesAnteriorInfo.mes)
-          : Promise.resolve(null),
+        esAnio
+          ? this.reportingService.getTicketPromedio(anio - 1)
+          : mesAnteriorInfo
+            ? this.reportingService.getTicketPromedio(mesAnteriorInfo.anio, mesAnteriorInfo.mes)
+            : Promise.resolve(null),
         // La tendencia se recarga solo si cambió el año (ver cargarTendencia);
         // acá se refresca siempre que cambia el mes/anio para no desincronizar
         // el KPI de "ventas mensuales" con el filtro visible.
-        this.reportingService.getTendenciaVentas(anio)
+        this.reportingService.getTendenciaVentas(anio),
+        esAnio ? this.reportingService.getTendenciaVentas(anio - 1) : Promise.resolve(null)
       ]);
 
       this.topProductos.set(productos.productos);
@@ -655,6 +724,7 @@ export class GerenciaDashboardComponent {
       this.ticketPromedioActual.set(ticket.ticket_promedio);
       this.ticketPromedioAnterior.set(ticketAnterior?.ticket_promedio ?? null);
       this.tendenciaAnio.set(tendencia.meses);
+      this.tendenciaAnioAnterior.set(tendenciaAnterior?.meses ?? []);
       this.errorReporte.set(null);
     } catch (err) {
       this.errorReporte.set(this.mensajeErrorReporte());

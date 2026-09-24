@@ -124,8 +124,10 @@ export class ReportingService {
 
   // ----- /gerencia/* (requiere role GERENCIA o ADMIN) -----
 
-  getTopClientesGerencia(anio: number, mes: number, limite = 15): Promise<TopClientesGerenciaResponse> {
-    const params = new HttpParams().set('anio', anio).set('mes', mes).set('limite', limite);
+  // mes omitido (undefined) = todo el año -- ver backend/reporting/src/routers/gerencia.py
+  getTopClientesGerencia(anio: number, mes?: number, limite = 15): Promise<TopClientesGerenciaResponse> {
+    let params = new HttpParams().set('anio', anio).set('limite', limite);
+    if (mes !== undefined) params = params.set('mes', mes);
     return firstValueFrom(
       this.http.get<TopClientesGerenciaResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/top-clientes`, {
         params,
@@ -136,11 +138,12 @@ export class ReportingService {
 
   getTopProductosGerencia(
     anio: number,
-    mes: number,
+    mes?: number,
     orden: 'asc' | 'desc' = 'desc',
     limite = 10
   ): Promise<TopProductosGerenciaResponse> {
-    const params = new HttpParams().set('anio', anio).set('mes', mes).set('orden', orden).set('limite', limite);
+    let params = new HttpParams().set('anio', anio).set('orden', orden).set('limite', limite);
+    if (mes !== undefined) params = params.set('mes', mes);
     return firstValueFrom(
       this.http.get<TopProductosGerenciaResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/top-productos`, {
         params,
@@ -149,8 +152,9 @@ export class ReportingService {
     );
   }
 
-  getTicketPromedio(anio: number, mes: number): Promise<TicketPromedioResponse> {
-    const params = new HttpParams().set('anio', anio).set('mes', mes);
+  getTicketPromedio(anio: number, mes?: number): Promise<TicketPromedioResponse> {
+    let params = new HttpParams().set('anio', anio);
+    if (mes !== undefined) params = params.set('mes', mes);
     return firstValueFrom(
       this.http.get<TicketPromedioResponse>(`${REPORTING_SERVICE_BASE_URL}/gerencia/ticket-promedio`, {
         params,
