@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ConsumoIaService } from '../../../core/services/consumo-ia.service';
-import { ConsumoIaChat, ConsumoIaResponse, ConsumoIaUsuario } from '../../../core/models/consumo-ia.model';
+import { ConsumoIaChat, ConsumoIaResponse } from '../../../core/models/consumo-ia.model';
 
 const SIN_IDENTIFICAR = 'sin-identificar';
 
@@ -17,8 +17,6 @@ export class ConsumoIa implements OnInit {
 
   datos = signal<ConsumoIaResponse | null>(null);
   dias = signal<number>(30);
-  /** Empleado cuyos chats se están viendo (su `clave`); null = todos. */
-  filtro = signal<ConsumoIaUsuario | null>(null);
   chatAbierto = signal<number | null>(null);
   cargando = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
@@ -35,12 +33,6 @@ export class ConsumoIa implements OnInit {
     this.cargar();
   }
 
-  verChats(usuario: ConsumoIaUsuario | null) {
-    this.filtro.set(usuario);
-    this.chatAbierto.set(null);
-    this.cargar();
-  }
-
   alternarChat(chat: ConsumoIaChat) {
     this.chatAbierto.update((id) => (id === chat.id ? null : chat.id));
   }
@@ -48,7 +40,7 @@ export class ConsumoIa implements OnInit {
   private cargar() {
     this.cargando.set(true);
     this.errorMessage.set(null);
-    this.consumoIaService.obtener(this.dias(), this.filtro()?.clave).subscribe({
+    this.consumoIaService.obtener(this.dias()).subscribe({
       next: (data) => {
         this.datos.set(data);
         this.cargando.set(false);

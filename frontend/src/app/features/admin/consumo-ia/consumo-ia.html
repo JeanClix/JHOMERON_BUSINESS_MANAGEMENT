@@ -66,12 +66,11 @@
               <th class="px-6 py-4 font-semibold text-right">Tokens salida</th>
               <th class="px-6 py-4 font-semibold text-right">Costo est.</th>
               <th class="px-6 py-4 font-semibold">Última pregunta</th>
-              <th class="px-6 py-4"><span class="sr-only">Acciones</span></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
             @for (u of d.porUsuario; track u.clave) {
-              <tr class="hover:bg-slate-50 transition-colors" [class.bg-blue-50]="filtro()?.clave === u.clave">
+              <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4">
                   <div class="font-medium text-slate-900">{{ nombreDe(u) }}</div>
                   @if (detalleDe(u); as detalle) {
@@ -90,14 +89,7 @@
                     <span class="text-slate-400">—</span>
                   }
                 </td>
-                <td class="px-6 py-4 text-right tabular-nums">
-                  {{ entero(u.preguntas) }}
-                  @if (u.fallidas > 0) {
-                    <div class="text-xs text-rose-600">
-                      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ u.fallidas }} con error
-                    </div>
-                  }
-                </td>
+                <td class="px-6 py-4 text-right tabular-nums">{{ entero(u.preguntas) }}</td>
                 @if (u.preguntasSinTokens === u.preguntas) {
                   <td colspan="3" class="px-6 py-4 text-right text-xs text-slate-400">Sin datos de tokens</td>
                 } @else {
@@ -106,16 +98,10 @@
                   <td class="px-6 py-4 text-right tabular-nums">{{ usd(u.costoEstimadoUsd) }}</td>
                 }
                 <td class="px-6 py-4 whitespace-nowrap">{{ fecha(u.ultimaPregunta) }}</td>
-                <td class="px-6 py-4 text-right">
-                  <button type="button" (click)="verChats(u)"
-                          class="text-[#0d3393] hover:underline text-sm font-medium whitespace-nowrap">
-                    Ver chats
-                  </button>
-                </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="8" class="px-6 py-10 text-center text-slate-400">Nadie usó el asistente en este período.</td>
+                <td colspan="7" class="px-6 py-10 text-center text-slate-400">Nadie usó el asistente en este período.</td>
               </tr>
             }
           </tbody>
@@ -125,18 +111,7 @@
 
     <!-- Chats -->
     <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-      <h4 class="text-lg font-semibold text-slate-800">
-        Chats recientes
-        @if (filtro(); as f) {
-          <span class="text-slate-500 font-normal">de {{ nombreDe(f) }}</span>
-        }
-      </h4>
-      @if (filtro()) {
-        <button type="button" (click)="verChats(null)"
-                class="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg">
-          <i class="fa-solid fa-xmark" aria-hidden="true"></i> Ver todos
-        </button>
-      }
+      <h4 class="text-lg font-semibold text-slate-800">Chats recientes</h4>
     </div>
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="overflow-x-auto">
