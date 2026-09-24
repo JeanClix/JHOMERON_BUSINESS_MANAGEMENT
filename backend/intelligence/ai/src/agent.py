@@ -7,6 +7,7 @@ mejor que RAG. Para documentación institucional (no estructurada: políticas,
 catálogo, procesos) sí se usa RAG -- ver buscar_documentos en tools.py.
 """
 import json
+import re
 import time
 from datetime import date
 from pathlib import Path
@@ -16,11 +17,32 @@ from openai import APIConnectionError, APIStatusError, OpenAI
 from .config import settings
 from .tools import SqlToolError, build_rag_tool_schema, build_sql_tool_schema, buscar_documentos, ejecutar_sql
 from .audit import registrar_consulta
+from .enrutador import RUTA_FUERA_DE_TEMA, TOOL_DOCUMENTOS, TOOL_SQL, enrutar
 from .tiempos import TrazaTiempos
 
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 _SYSTEM_PROMPT_EMPRESA = (_PROMPTS_DIR / "system_prompt.md").read_text(encoding="utf-8")
 _SYSTEM_PROMPT_VENDEDOR = (_PROMPTS_DIR / "system_prompt_vendedor.md").read_text(encoding="utf-8")
+
+_SECCION_PROMPT = re.compile(r"<!-- seccion:(\w+) -->\n(.*?)<!-- /seccion:\1 -->\n", re.S)
+
+
+def _recortar_prompt(prompt: str, tools: frozenset[str]) -> str:
+    """Deja solo las secciones <!-- seccion:X --> de las tools que se van a
+    ofrecer (ver enrutador.py) y quita las marcas. Sin enrutador `tools` son
+    todas y el prompt queda igual que antes, solo sin las marcas."""
+    recortado = _SECCION_PROMPT.sub(lambda m: m.group(2) if m.group(1) in tools else "", prompt)
+    return re.sub(r"\n{3,}", "\n\n", recortado)
+
+
+def _respuesta_fuera_de_tema(vendedor: str | None, nombre: str | None) -> str:
+    """Misma respuesta que pide el prompt para temas ajenos al negocio, pero
+    sin pasar por el LLM (ver enrutador.RUTA_FUERA_DE_TEMA)."""
+    if vendedor:
+        primer_nombre = (nombre or "").split(" ")[0]
+        saludo = f"{primer_nombre}, solo" if primer_nombre else "Solo"
+        return f"{saludo} puedo ayudarte con tus ventas, clientes y productos, o con documentación de JHOMERON. ¿Te ayudo con algo de eso?"
+    return "Solo puedo ayudarte con consultas del negocio de JHOMERON: ventas, clientes, productos o documentación de la empresa. ¿Quieres preguntarme algo de eso?"
 
 # max_retries=0: los reintentos los hace _completar_con_reintento. Con los
 # del SDK (2 por defecto) un 429 de Groq se dormía en silencio 12-31 s dentro
@@ -157,16 +179,50 @@ def responder_pregunta(
     else:
         system_prompt = _SYSTEM_PROMPT_EMPRESA
     system_prompt = system_prompt.replace("{{FECHA_HOY}}", _fecha_hoy_es())
-    sql_tool_schema = build_sql_tool_schema(vendedor)
-    rag_tool_schema = build_rag_tool_schema()
 
     historial_acotado = (historial or [])[-_HISTORIAL_MAX_MENSAJES:]
+    traza = TrazaTiempos(pregunta, rol, historial_mensajes=len(historial_acotado))
+
+    decision = enrutar(pregunta, historial_acotado)
+    traza.datos["enrutador"] = decision.a_dict()
+    if decision.ruta == RUTA_FUERA_DE_TEMA:
+        texto_final = _respuesta_fuera_de_tema(vendedor, nombre)
+        duracion_ms = int((time.monotonic() - inicio) * 1000)
+        registrar_consulta(
+            pregunta_usuario=pregunta,
+            vendedor=vendedor,
+            sql_generado=None,
+            filas_retornadas=None,
+            respuesta_llm=texto_final,
+            modelo=f"enrutador:{settings.jev_modelo}",
+            exito=True,
+            error=None,
+            duracion_ms=duracion_ms,
+        )
+        traza.cerrar(exito=True)
+        return {
+            "respuesta": texto_final,
+            "sql_generado": None,
+            "filas_retornadas": None,
+            "datos": None,
+            "duracion_ms": duracion_ms,
+        }
+
+    system_prompt = _recortar_prompt(system_prompt, decision.tools)
+    tools_llm = []
+    if TOOL_SQL in decision.tools:
+        tools_llm.append(build_sql_tool_schema(vendedor))
+    if TOOL_DOCUMENTOS in decision.tools:
+        tools_llm.append(build_rag_tool_schema())
+    # Sin tools (ruta "saludo") no se manda la clave: algunos proveedores
+    # rechazan `tools=[]`.
+    kwargs_tools = {"tools": tools_llm} if tools_llm else {}
+
     mensajes = [
         {"role": "system", "content": system_prompt},
         *[{"role": m["role"], "content": m["content"]} for m in historial_acotado if m.get("role") in ("user", "assistant")],
         {"role": "user", "content": pregunta},
     ]
-    traza = TrazaTiempos(pregunta, rol, historial_mensajes=len(historial_acotado))
 
     sql_generado = None
     filas_retornadas = None
@@ -188,7 +244,7 @@ def responder_pregunta(
                 ronda,
                 model=settings.llm_model,
                 messages=mensajes,
-                tools=[sql_tool_schema, rag_tool_schema],
+                **kwargs_tools,
                 # Algunos modelos (ej. deepseek con "thinking") consumen parte del
                 # presupuesto en razonamiento antes del contenido final; con poco
                 # margen la respuesta queda vacía. Se deja margen amplio.

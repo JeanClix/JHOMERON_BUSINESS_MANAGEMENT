@@ -37,5 +37,24 @@ class Settings(BaseSettings):
     # consola se imprime igual).
     tiempos_log_path: str = "logs/tiempos_chat.jsonl"
 
+    # Enrutador previo con Jev (TypeSafe AI, ver enrutador.py): decide qué
+    # tools y qué secciones del prompt necesita cada pregunta antes de
+    # llamar al LLM. Apagado por defecto -- sin él el chat se comporta como
+    # siempre (todas las tools, prompt completo).
+    jev_habilitado: bool = False
+    typesafe_api_key: str | None = None
+    typesafe_base_url: str = "https://api.typesafe.ai"
+    jev_modelo: str = "jev-latest"
+    # Si Jev no responde en este tiempo se sigue sin enrutar -- nunca debe
+    # hacer más lento el chat de lo que ya es.
+    jev_timeout_s: float = 1.5
+    # Probabilidad mínima para incluir una tool. Bajo a propósito: incluir
+    # una tool de más solo cuesta tokens, quitar una necesaria rompe la
+    # respuesta.
+    jev_umbral_tool: float = 0.35
+    # Probabilidad mínima para responder "fuera de tema" / "saludo" sin
+    # tools. Alto a propósito: un falso positivo rechaza una pregunta válida.
+    jev_umbral_sin_tools: float = 0.85
+
 
 settings = Settings()

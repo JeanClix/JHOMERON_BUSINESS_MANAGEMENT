@@ -77,10 +77,32 @@ def _resumir(nombre: str, trazas: list[dict]) -> None:
     for nombre_tool, tiempos in sorted(tools.items()):
         print(f"  tool {nombre_tool:<18} n={len(tiempos):<4} p50={_percentil(tiempos, 0.5)} ms  p90={_percentil(tiempos, 0.9)} ms")
 
+    _resumir_rutas(ok)
+
     lentas = sorted(ok, key=lambda t: t["total_ms"], reverse=True)[:3]
     print("más lentas:")
     for t in lentas:
         print(f"  {t['total_ms']:>6} ms  rondas={t['num_rondas']}  espera_rl={t['espera_rate_limit_ms']} ms  «{t['pregunta'][:70]}»")
+
+
+def _resumir_rutas(ok: list[dict]) -> None:
+    """Desglose por ruta del enrutador Jev (ver src/enrutador.py) -- para
+    ver cuántos tokens de LLM cuesta cada tipo de pregunta. Las trazas de
+    antes del enrutador no traen la clave y cuentan como "sin_enrutador"."""
+    por_ruta: dict[str, list[dict]] = defaultdict(list)
+    for t in ok:
+        por_ruta[(t.get("enrutador") or {}).get("ruta", "sin_enrutador")].append(t)
+    if set(por_ruta) == {"sin_enrutador"}:
+        return
+    print("por ruta del enrutador:")
+    for ruta, grupo in sorted(por_ruta.items(), key=lambda kv: -len(kv[1])):
+        tokens = sum(t["tokens_entrada"] + t["tokens_salida"] for t in grupo) // len(grupo)
+        total = _percentil([t["total_ms"] for t in grupo], 0.5)
+        jev = [t["enrutador"]["ms"] for t in grupo if t.get("enrutador", {}).get("ms")]
+        jev_txt = f"  jev p50={_percentil(jev, 0.5)} ms" if jev else ""
+        errores = sum(1 for t in grupo if (t.get("enrutador") or {}).get("error"))
+        err_txt = f"  errores_jev={errores}" if errores else ""
+        print(f"  {ruta:<16} n={len(grupo):<4} tokens LLM prom={tokens:<6} total p50={total} ms{jev_txt}{err_txt}")
 
 
 def main() -> None:
