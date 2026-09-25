@@ -93,6 +93,28 @@ def _datos_hasta_es() -> str:
             "posteriores, aclara que todavía no hay datos cargados de ese período -- no digas que no hubo ventas.")
 
 
+_MONTO_SOLES = re.compile(r"S/\s?(\d[\d,]*(?:\.\d+)?)")
+
+
+def _montos(texto: str) -> set[int]:
+    """Montos en soles escritos como "S/ 50,892.34" (formato que pide el
+    prompt), redondeados a entero para comparar."""
+    montos = set()
+    for m in _MONTO_SOLES.finditer(texto or ""):
+        try:
+            montos.add(round(float(m.group(1).replace(",", ""))))
+        except ValueError:
+            pass
+    return montos
+
+
+_AVISO_CIFRAS_SIN_CONSULTA = (
+    "Tu respuesta da montos en soles que no salen de ninguna consulta de esta pregunta. Los resultados "
+    "de preguntas anteriores ya no están disponibles. Ejecuta ejecutar_sql para obtener los datos reales "
+    "y responde solo con esos resultados -- nunca inventes ni estimes cifras."
+)
+
+
 def responder_pregunta(
     pregunta: str,
     rol: str,
@@ -180,6 +202,15 @@ def responder_pregunta(
     )
 
     sql_generado = None
+    # Control de cifras inventadas (ver _montos): Haiku llegó a responder un
+    # "peor mes" con un monto que no salía de ninguna consulta, en una
+    # repregunta ("sacando setiembre") donde no volvió a ejecutar SQL. Montos
+    # que sí pueden aparecer sin consultar: los del prompt (metas) y los ya
+    # dichos en la conversación.
+    montos_conocidos = _montos(system_prompt) | {
+        monto for m in historial_acotado for monto in _montos(str(m.get("content", "")))
+    }
+    aviso_cifras_usado = False
     filas_retornadas = None
     ultimos_datos: list[dict] | None = None
     # Ventana deslizante de las últimas rondas de tool-calling que se
@@ -202,6 +233,17 @@ def responder_pregunta(
 
             if not respuesta.llamadas:
                 texto_final = respuesta.texto
+                if TOOL_SQL in decision.tools and sql_generado is None and _montos(texto_final) - montos_conocidos:
+                    if not aviso_cifras_usado:
+                        aviso_cifras_usado = True
+                        conversacion.agregar_aviso(_AVISO_CIFRAS_SIN_CONSULTA)
+                        continue
+                    # Insistió en dar cifras sin consultar: mejor no mostrar
+                    # un número que no se pudo verificar.
+                    texto_final = (
+                        "No pude verificar esa cifra con los datos de ventas. ¿Puedes hacerme la pregunta "
+                        "completa, por ejemplo indicando el período? Así la consulto directamente."
+                    )
                 duracion_ms = int((time.monotonic() - inicio) * 1000)
                 registrar_consulta(
                     pregunta_usuario=pregunta,

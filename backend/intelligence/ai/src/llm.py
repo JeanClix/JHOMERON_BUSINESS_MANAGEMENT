@@ -158,6 +158,12 @@ class Conversacion:
     def podar(self, indices_a_mantener: set[int]) -> None:
         raise NotImplementedError
 
+    def agregar_aviso(self, texto: str) -> None:
+        """Agrega un mensaje del sistema/servicio (no del usuario) después de
+        la última respuesta del modelo -- ver el control de cifras en
+        agent.responder_pregunta."""
+        self.mensajes.append({"role": "user", "content": f"[Aviso del sistema, no del usuario] {texto}"})
+
 
 class _ConversacionOpenAI(Conversacion):
     def __init__(self, system_prompt: str, historial: list[dict], pregunta: str):
