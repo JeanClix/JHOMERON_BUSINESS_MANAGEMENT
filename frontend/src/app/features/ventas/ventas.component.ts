@@ -9,6 +9,7 @@ import { VentasChatBarComponent } from './components/ventas-chat-bar/ventas-chat
 import { BusinessChartComponent } from '../../shared/components/business-chart/business-chart.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ReportingService } from '../../core/services/reporting.service';
+import { VentasAiChatService } from '../../core/services/ventas-ai-chat.service';
 import { BusinessChartData } from '../../core/models/chart.model';
 import {
   ClienteCartera,
@@ -28,6 +29,7 @@ import {
 export class VentasComponent {
   private readonly authService = inject(AuthService);
   private readonly reportingService = inject(ReportingService);
+  private readonly ventasAiChatService = inject(VentasAiChatService);
 
   // Navigation & UI Signals
   protected readonly isSidebarCollapsed = signal<boolean>(false);
@@ -321,6 +323,27 @@ export class VentasComponent {
       this.cargarVentas();
       this.cargarProductos();
     }
+  }
+
+  /**
+   * Botón de varita de cada tarjeta del dashboard (como en gerencia): manda
+   * al asistente una pregunta sobre esa tarjeta y abre el módulo del
+   * asistente con la respuesta. A diferencia de gerencia, el chat del
+   * vendedor no recibe el contexto del dashboard, así que cada pregunta ya
+   * lleva el período que se está viendo.
+   */
+  protected preguntarIa(tarjeta: 'ventas' | 'meta' | 'lineas' | 'grafico' | 'productos' | 'reactivar') {
+    const periodo = this.periodoLabel();
+    const preguntas: Record<typeof tarjeta, string> = {
+      ventas: `¿Cuánto vendí en ${periodo} y cómo se compara con el período anterior?`,
+      meta: `¿Cómo voy con mi meta ${this.etiquetaMeta()} en ${periodo}? ¿Cuánto me falta para cumplirla?`,
+      lineas: `En ${periodo}, ¿cuántas líneas de venta tuve y qué productos se repitieron más?`,
+      grafico: `Explícame mis ventas por día de ${periodo}: ¿qué días vendí más y qué días menos?`,
+      productos: `¿Cuáles fueron mis productos ${this.productosOrden() === 'desc' ? 'más' : 'menos'} vendidos en ${periodo} y cuánto representan en soles?`,
+      reactivar: '¿Qué clientes llevan más de 30 días sin comprarme y a cuáles me conviene reactivar primero según lo que compraban?',
+    };
+    this.onSelectedIdChange('asistente_ia');
+    void this.ventasAiChatService.sendMessage(preguntas[tarjeta]);
   }
 
   protected setProductosOrden(orden: 'asc' | 'desc') {
