@@ -5,6 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { SidebarComponent } from '../../common/sidebar/sidebar.component';
 import { SidebarItem } from '../../common/sidebar-item/sidebar-item.component';
 import { VentasAiChatComponent } from './components/ventas-ai-chat/ventas-ai-chat.component';
+import { VentasChatBarComponent } from './components/ventas-chat-bar/ventas-chat-bar.component';
 import { BusinessChartComponent } from '../../shared/components/business-chart/business-chart.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ReportingService } from '../../core/services/reporting.service';
@@ -21,7 +22,7 @@ import {
 @Component({
   selector: 'app-ventas',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent, VentasAiChatComponent, BusinessChartComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, VentasAiChatComponent, VentasChatBarComponent, BusinessChartComponent],
   templateUrl: './ventas.component.html'
 })
 export class VentasComponent {
