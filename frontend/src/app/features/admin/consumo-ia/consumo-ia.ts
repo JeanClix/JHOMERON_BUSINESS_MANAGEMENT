@@ -1,8 +1,18 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ConsumoIaService } from '../../../core/services/consumo-ia.service';
-import { ConsumoIaChat, ConsumoIaResponse } from '../../../core/models/consumo-ia.model';
+import { ConsumoIaChat, ConsumoIaResponse, ConsumoIaUsuario } from '../../../core/models/consumo-ia.model';
 
 const SIN_IDENTIFICAR = 'sin-identificar';
+
+/**
+ * Filtro temporal: solo empleados con cuenta en el sistema (usuario y nombre
+ * resueltos contra la tabla usuarios). Oculta los chats "sin identificar"
+ * (gerencia antes de registrar el usuario) y los de vendedores de prueba sin
+ * cuenta -- siguen en ai.consulta_log, solo no se muestran.
+ */
+function tieneCuenta(u: Pick<ConsumoIaUsuario, 'clave' | 'usuario' | 'nombre'>): boolean {
+  return u.clave !== SIN_IDENTIFICAR && u.usuario !== null && u.nombre !== null;
+}
 
 @Component({
   selector: 'app-consumo-ia',
@@ -20,6 +30,28 @@ export class ConsumoIa implements OnInit {
   chatAbierto = signal<number | null>(null);
   cargando = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
+
+  /** `datos` con el filtro de tieneCuenta aplicado y los totales recalculados sobre lo visible. */
+  protected readonly visible = computed<ConsumoIaResponse | null>(() => {
+    const d = this.datos();
+    if (!d) return null;
+    const porUsuario = d.porUsuario.filter(tieneCuenta);
+    const claves = new Set(porUsuario.map((u) => u.clave));
+    const suma = (campo: 'preguntas' | 'tokensEntrada' | 'tokensSalida' | 'costoEstimadoUsd' | 'preguntasSinTokens') =>
+      porUsuario.reduce((total, u) => total + u[campo], 0);
+    return {
+      ...d,
+      porUsuario,
+      chats: d.chats.filter((c) => claves.has(c.clave)),
+      totales: {
+        preguntas: suma('preguntas'),
+        tokensEntrada: suma('tokensEntrada'),
+        tokensSalida: suma('tokensSalida'),
+        costoEstimadoUsd: Math.round(suma('costoEstimadoUsd') * 10_000) / 10_000,
+        preguntasSinTokens: suma('preguntasSinTokens'),
+      },
+    };
+  });
 
   private readonly formatoCompacto = new Intl.NumberFormat('es-PE', { notation: 'compact', maximumFractionDigits: 1 });
   private readonly formatoEntero = new Intl.NumberFormat('es-PE');
