@@ -192,6 +192,12 @@ export class GerenciaChatService {
             { headers: this.authHeaders() }
           )
         );
+        // Igual que en el chat de ventas (ventas-ai-chat.service.ts): el SQL
+        // no se muestra en la UI, queda en consola para depurar una respuesta
+        // rara sin tener que ir a ai.consulta_log.
+        if (respuesta.sql_generado) {
+          console.log('[Asistente de Gerencia] SQL ejecutado:', respuesta.sql_generado, `(${respuesta.filas_retornadas} filas)`);
+        }
         aiMsg = { id: `ai-${Date.now()}`, sender: 'assistant', content: respuesta.respuesta, timestamp: this.now() };
       } catch (err) {
         aiMsg = { id: `err-${Date.now()}`, sender: 'assistant', content: this.mensajeError(err), timestamp: this.now() };
