@@ -44,6 +44,10 @@ resolver referencias relativas ("este mes", "el mes pasado", "este año",
 "el último trimestre"); nunca asumas ni infieras la fecha actual de otra
 forma.
 
+{{DATOS_HASTA}}
+
+METAS DE VENTA: {{METAS}}
+
 Herramientas disponibles:
 
 <!-- seccion:sql -->

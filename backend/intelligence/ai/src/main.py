@@ -81,6 +81,7 @@ def chat(
     request: PreguntaRequest,
     vendedor: str | None = Depends(resolve_chat_identity),
     claims: dict = Depends(get_current_claims),
+    token: str = Depends(get_bearer_token),
 ):
     """Requiere JWT (ver resolve_chat_identity): un VENDEDOR solo puede
     consultar sus propias ventas (ai.v_ventas_vendedor, forzado en tools.py),
@@ -96,6 +97,7 @@ def chat(
             nombre=claims.get("name"),
             historial=[m.model_dump() for m in request.historial],
             usuario=claims.get("sub"),
+            token=token,
         )
     except Exception as e:
         if es_rate_limit(e):

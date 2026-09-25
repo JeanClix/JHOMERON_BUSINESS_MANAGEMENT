@@ -311,3 +311,17 @@ def clientes_en_riesgo(
         "monto_en_riesgo_soles": resumen["monto_en_riesgo"],
         "clientes": filas,
     }
+
+
+@router.get("/metas-vendedores")
+def metas_vendedores(_claims: dict = Depends(require_gerencia)):
+    """Meta mensual y semanal de cada vendedor (configuradas en el panel
+    admin). La consume el asistente de IA para responder preguntas de
+    cumplimiento de gerencia sin tener que preguntarle la meta al usuario --
+    ver backend/intelligence/ai/src/metas.py. `vendedor_nombre_sap` es el
+    mismo valor que la columna `vendedor` de las vistas de ventas."""
+    with get_connection() as conn:
+        filas = conn.execute(
+            "SELECT nombre, vendedor_nombre_sap, meta_mensual, meta_semanal FROM bi.v_vendedores ORDER BY nombre"
+        ).fetchall()
+    return {"vendedores": filas}

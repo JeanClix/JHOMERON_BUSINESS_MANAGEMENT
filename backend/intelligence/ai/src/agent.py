@@ -13,10 +13,12 @@ from datetime import date
 from pathlib import Path
 
 from .config import settings
+from .db import get_connection
 from .tools import SqlToolError, build_rag_tool_schema, build_sql_tool_schema, buscar_documentos, ejecutar_sql
 from .audit import registrar_consulta
 from .enrutador import RUTA_FUERA_DE_TEMA, TOOL_DOCUMENTOS, TOOL_SQL, enrutar
 from .llm import nueva_conversacion
+from .metas import contexto_metas
 from .tiempos import TrazaTiempos
 
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -58,10 +60,37 @@ _MESES_ES = [
 ]
 
 
+def _fecha_es(dia: date) -> str:
+    """Fecha en español, sin depender del locale del servidor."""
+    return f"{dia.day} de {_MESES_ES[dia.month - 1]} de {dia.year}"
+
+
 def _fecha_hoy_es() -> str:
-    """Fecha de hoy en español, sin depender del locale del servidor."""
-    hoy = date.today()
-    return f"{hoy.day} de {_MESES_ES[hoy.month - 1]} de {hoy.year}"
+    return _fecha_es(date.today())
+
+
+_CACHE_ULTIMA_VENTA_S = 600
+_cache_ultima_venta: tuple[float, date | None] = (0.0, None)
+
+
+def _datos_hasta_es() -> str:
+    """Hasta qué día hay ventas en el DW (lo que cargó el batch). Sin esto,
+    si el batch no corrió en días, el LLM respondía "no tienes ventas esta
+    semana" en vez de aclarar que los datos llegan hasta cierta fecha. Se
+    cachea unos minutos: cambia solo cuando corre el batch."""
+    global _cache_ultima_venta
+    momento, ultima = _cache_ultima_venta
+    if time.monotonic() - momento > _CACHE_ULTIMA_VENTA_S:
+        try:
+            with get_connection() as conn:
+                ultima = conn.execute("SELECT MAX(fecha) AS f FROM ai.v_ventas").fetchone()["f"]
+            _cache_ultima_venta = (time.monotonic(), ultima)
+        except Exception:  # noqa: BLE001 -- nunca tumbar el chat por esto
+            ultima = None
+    if ultima is None:
+        return "No se pudo determinar hasta qué fecha hay datos."
+    return (f"Los datos de ventas están cargados hasta el **{_fecha_es(ultima)}**. Si preguntan por días "
+            "posteriores, aclara que todavía no hay datos cargados de ese período -- no digas que no hubo ventas.")
 
 
 def responder_pregunta(
@@ -71,6 +100,7 @@ def responder_pregunta(
     nombre: str | None = None,
     historial: list[dict] | None = None,
     usuario: str | None = None,
+    token: str | None = None,
 ) -> dict:
     """`vendedor` viene del claim `vendedorNombreSap` del JWT (nunca de un
     parámetro que mande el cliente) -- ver main.py/auth.py. Si es None, quien
@@ -83,6 +113,7 @@ def responder_pregunta(
     JWT (nombre real de la persona), solo para que el LLM salude por su
     nombre -- nunca se usa para autorización. `usuario` es el claim `sub`
     del JWT, solo para la auditoría de consumo (ai.consulta_log.usuario).
+    `token` es el JWT tal cual, para pedir las metas a reporting (metas.py).
 
     `historial` son los mensajes previos de ESTA conversación (lista de
     {"role": "user"|"assistant", "content": str}, más viejo primero, sin el
@@ -100,6 +131,8 @@ def responder_pregunta(
     else:
         system_prompt = _SYSTEM_PROMPT_EMPRESA
     system_prompt = system_prompt.replace("{{FECHA_HOY}}", _fecha_hoy_es())
+    system_prompt = system_prompt.replace("{{DATOS_HASTA}}", _datos_hasta_es())
+    system_prompt = system_prompt.replace("{{METAS}}", contexto_metas(token, es_vendedor=vendedor is not None))
 
     historial_acotado = (historial or [])[-_HISTORIAL_MAX_MENSAJES:]
     traza = TrazaTiempos(pregunta, rol, historial_mensajes=len(historial_acotado))
