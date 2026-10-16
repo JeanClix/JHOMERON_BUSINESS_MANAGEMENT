@@ -244,7 +244,7 @@
 
               <div class="rounded-xl bg-white p-5 border border-slate-200 shadow-sm space-y-2">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Líneas de Venta</span>
+                  <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cantidad de Productos Vendidos</span>
                   <button type="button" (click)="preguntarIa('lineas')" title="Preguntarle a la IA sobre tus líneas de venta" aria-label="Preguntarle a la IA sobre tus líneas de venta"
                         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-[#0d3393] hover:text-white transition-colors">
                   <i class="fa-solid fa-wand-magic-sparkles text-[10px]" aria-hidden="true"></i>
@@ -257,6 +257,62 @@
 
             <!-- Gráfico de barras: ventas por día del período -->
             <app-business-chart [chartData]="chartData()" height="260px" [explainable]="true" (explain)="preguntarIa('grafico')"></app-business-chart>
+
+            <!-- Mapa de clientes por departamento & Clientes que más compran -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="rounded-2xl bg-white p-6 border border-slate-200 shadow-sm">
+                <app-peru-map
+                  [counts]="clientesPorDepartamento()"
+                  title="Mis clientes por departamento"
+                  unitLabel="clientes"
+                ></app-peru-map>
+              </div>
+
+              <div class="rounded-2xl bg-white p-6 border border-slate-200 shadow-sm space-y-4">
+                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-crown text-[#0d3393] fa-font-solid"></i> Clientes que más me compran
+                </h3>
+                @if (clientesTopCompra().length) {
+                  <div class="space-y-2.5">
+                    @for (c of clientesTopCompra(); track c.ruc; let i = $index) {
+                      <div class="flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
+                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0d3393] text-white text-xs font-bold">{{ (paginaTopCompra() - 1) * tamanoPaginaTopCompra + i + 1 }}</span>
+                        <div class="flex-1 min-w-0">
+                          <p class="text-xs font-bold text-slate-900 truncate">{{ c.cliente }}</p>
+                          <p class="text-[11px] text-slate-500">{{ c.departamento | titlecase }} · {{ c.compras_historicas }} compras</p>
+                        </div>
+                        <span class="text-xs font-extrabold text-[#ef0606] shrink-0">S/ {{ c.total_soles_historico | number:'1.0-0' }}</span>
+                      </div>
+                    }
+                  </div>
+
+                  <!-- Paginación -->
+                  <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <span class="text-[11px] text-slate-400">
+                      {{ clientesTopCompraOrdenados().length }} cliente(s) · Página {{ paginaTopCompra() }} de {{ totalPaginasTopCompra() }}
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <button
+                        (click)="anteriorPaginaTopCompra()"
+                        [disabled]="paginaTopCompra() <= 1"
+                        class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <i class="fa-solid fa-chevron-left text-xs fa-font-solid"></i>
+                      </button>
+                      <button
+                        (click)="siguientePaginaTopCompra()"
+                        [disabled]="paginaTopCompra() >= totalPaginasTopCompra()"
+                        class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-[#0d3393] hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <i class="fa-solid fa-chevron-right text-xs fa-font-solid"></i>
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  <p class="text-xs text-slate-400 text-center py-8">Sin datos de clientes todavía.</p>
+                }
+              </div>
+            </div>
 
             <!-- Top de productos & Clientes para reactivar (IA) -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -429,6 +485,10 @@
         <!-- ASISTENTE DE VENTAS IA (conectado al AI Service / Data Warehouse real) -->
         @case ('asistente_ia') {
           <app-ventas-ai-chat></app-ventas-ai-chat>
+        }
+
+        @case ('documentacion') {
+          <app-gerencia-documentacion (irAChatVentas)="onSelectedIdChange('asistente_ia')"></app-gerencia-documentacion>
         }
 
         @default {

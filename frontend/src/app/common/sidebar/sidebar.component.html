@@ -29,20 +29,24 @@
       </div>
     </div>
 
-    <!-- TÍTULO DE NAVEGACIÓN -->
-    @if (!isCollapsed()) {
-      <div class="mb-2 flex items-center justify-between px-4">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-200 opacity-80"> Herramientas de Venta </span>
-        <span class="rounded bg-[#ef0606] px-2 py-0.5 text-[9px] font-bold text-white shadow-xs"> INTERNO </span>
-      </div>
-    }
-
     <!-- NAVEGACIÓN -->
-    <nav class="space-y-1.5 px-4">
-      @for (item of items(); track item.id) {
-        <app-sidebar-item [item]="item"
-          [isSelected]="item.id === selectedId()" [isCollapsed]="isCollapsed()" (select)="onItemSelect($event)">
-        </app-sidebar-item>
+    <nav class="space-y-5 px-4">
+      @for (group of groups(); track group.label) {
+        <div>
+          @if (!isCollapsed()) {
+            <div class="mb-2.5 flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-200 opacity-80"> {{ group.label }} </span>
+              <span class="rounded bg-[#ef0606] px-2 py-0.5 text-[9px] font-bold text-white shadow-xs"> INTERNO </span>
+            </div>
+          }
+          <div class="space-y-2.5">
+            @for (item of group.items; track item.id) {
+              <app-sidebar-item [item]="item"
+                [isSelected]="item.id === selectedId()" [isCollapsed]="isCollapsed()" (select)="onItemSelect($event)">
+              </app-sidebar-item>
+            }
+          </div>
+        </div>
       }
     </nav>
   </div>

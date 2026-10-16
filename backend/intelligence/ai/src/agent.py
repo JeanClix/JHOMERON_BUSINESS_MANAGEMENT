@@ -202,6 +202,11 @@ def responder_pregunta(
     )
 
     sql_generado = None
+    # Exime del chequeo de cifras inventadas (abajo) cuando la respuesta se
+    # apoyó en buscar_documentos: los números de una política/documento
+    # institucional (ej. "30 y 50 días", "S/ 1,000") son reales y vienen del
+    # RAG, no una cifra de ventas inventada sin consultar.
+    documento_usado = False
     # Control de cifras inventadas (ver _montos): Haiku llegó a responder un
     # "peor mes" con un monto que no salía de ninguna consulta, en una
     # repregunta ("sacando setiembre") donde no volvió a ejecutar SQL. Montos
@@ -233,7 +238,12 @@ def responder_pregunta(
 
             if not respuesta.llamadas:
                 texto_final = respuesta.texto
-                if TOOL_SQL in decision.tools and sql_generado is None and _montos(texto_final) - montos_conocidos:
+                if (
+                    TOOL_SQL in decision.tools
+                    and sql_generado is None
+                    and not documento_usado
+                    and _montos(texto_final) - montos_conocidos
+                ):
                     if not aviso_cifras_usado:
                         aviso_cifras_usado = True
                         conversacion.agregar_aviso(_AVISO_CIFRAS_SIN_CONSULTA)
@@ -282,6 +292,7 @@ def responder_pregunta(
                         ultimos_datos = resultado["filas"]
                     elif llamada.nombre == "buscar_documentos":
                         resultado = buscar_documentos(args.get("consulta", ""), rol=rol)
+                        documento_usado = True
                     else:
                         raise SqlToolError(f"Tool desconocida: {llamada.nombre}")
                     contenido_tool = json.dumps(resultado, default=str)

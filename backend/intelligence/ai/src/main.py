@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .agent import responder_pregunta
-from .auth import get_bearer_token, get_current_claims, require_gerencia, require_vendedor, resolve_chat_identity
+from .auth import get_bearer_token, get_current_claims, require_gerencia, require_rol_valido, require_vendedor, resolve_chat_identity
 from .chunking import ExtraccionError
 from .documentos import (
     DocumentoError,
@@ -189,14 +189,14 @@ async def crear_documento_endpoint(
 
 
 @app.get("/documentos")
-def listar_documentos_endpoint(_claims: dict = Depends(require_gerencia)):
-    return {"documentos": listar_documentos()}
+def listar_documentos_endpoint(claims: dict = Depends(require_rol_valido)):
+    return {"documentos": listar_documentos(rol=claims.get("role"))}
 
 
 @app.get("/documentos/{documento_id}")
-def obtener_documento_endpoint(documento_id: int, _claims: dict = Depends(require_gerencia)):
+def obtener_documento_endpoint(documento_id: int, claims: dict = Depends(require_rol_valido)):
     try:
-        return obtener_documento(documento_id)
+        return obtener_documento(documento_id, rol=claims.get("role"))
     except DocumentoError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

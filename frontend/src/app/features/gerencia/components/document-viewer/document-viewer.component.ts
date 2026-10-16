@@ -24,22 +24,24 @@ import { BusinessDocument } from '../../../../core/models/document.model';
             </div>
 
             <div class="flex items-center gap-2">
-              <button
-                type="button"
-                (click)="editDoc.emit(document()!)"
-                class="rounded-xl bg-white border border-slate-200 hover:border-[#0d3393] hover:text-[#0d3393] text-slate-600 px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5"
-              >
-                <i class="fa-solid fa-pen text-xs"></i>
-                <span>Editar</span>
-              </button>
-              <button
-                type="button"
-                (click)="deactivateDoc.emit(document()!)"
-                class="rounded-xl bg-white border border-slate-200 hover:border-red-400 hover:text-red-600 text-slate-600 px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5"
-              >
-                <i class="fa-solid fa-trash text-xs"></i>
-                <span>Quitar</span>
-              </button>
+              @if (mostrarGestion()) {
+                <button
+                  type="button"
+                  (click)="editDoc.emit(document()!)"
+                  class="rounded-xl bg-white border border-slate-200 hover:border-[#0d3393] hover:text-[#0d3393] text-slate-600 px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5"
+                >
+                  <i class="fa-solid fa-pen text-xs"></i>
+                  <span>Editar</span>
+                </button>
+                <button
+                  type="button"
+                  (click)="deactivateDoc.emit(document()!)"
+                  class="rounded-xl bg-white border border-slate-200 hover:border-red-400 hover:text-red-600 text-slate-600 px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5"
+                >
+                  <i class="fa-solid fa-trash text-xs"></i>
+                  <span>Quitar</span>
+                </button>
+              }
               @if (mostrarBotonIA()) {
                 <button
                   type="button"
@@ -124,6 +126,10 @@ export class DocumentViewerComponent {
   // montada también en /admin/documentos) pero no tiene chat de IA -- ese
   // botón navega a /gerencia/chat, ruta bloqueada para ADMIN por roleGuard.
   mostrarBotonIA = input<boolean>(true);
+  // Ventas solo consulta la base de conocimiento, no la gestiona (eso queda
+  // para Gerencia/Admin) -- ver gerencia-documentacion.component.ts, montada
+  // también en /ventas/documentacion.
+  mostrarGestion = input<boolean>(true);
   askAiAboutDoc = output<BusinessDocument>();
   editDoc = output<BusinessDocument>();
   deactivateDoc = output<BusinessDocument>();

@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { GerenciaDataService } from '../../../../core/services/gerencia-data.service';
@@ -9,6 +9,7 @@ import { DocumentExplorerComponent } from '../../components/document-explorer/do
 import { DocumentViewerComponent } from '../../components/document-viewer/document-viewer.component';
 import { DocumentFormComponent } from '../../components/document-form/document-form.component';
 import { GerenciaChatService } from '../../../../core/services/gerencia-chat.service';
+import { VentasAiChatService } from '../../../../core/services/ventas-ai-chat.service';
 
 /**
  * Montada dos veces (ver app.routes.ts): en /gerencia/documentacion (dentro
@@ -40,12 +41,14 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
             Repositorio estructurado de manuales técnicos, políticas de crédito, reportes financieros y procedimientos de calidad Jhomeron.
           </p>
         </div>
-        <button (click)="nuevoDocumento()" class="shrink-0 flex items-center space-x-2 bg-[#0d3393] hover:bg-[#0b2670] text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Nuevo Documento</span>
-        </button>
+        @if (puedeGestionar()) {
+          <button (click)="nuevoDocumento()" class="shrink-0 flex items-center space-x-2 bg-[#0d3393] hover:bg-[#0b2670] text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Nuevo Documento</span>
+          </button>
+        }
       </div>
 
       @if (errorMessage()) {
@@ -70,6 +73,7 @@ import { GerenciaChatService } from '../../../../core/services/gerencia-chat.ser
           <app-document-viewer
             [document]="selectedDoc()"
             [mostrarBotonIA]="puedePreguntarIA()"
+            [mostrarGestion]="puedeGestionar()"
             (askAiAboutDoc)="onAskAiAboutDoc($event)"
             (editDoc)="onEditDoc($event)"
             (deactivateDoc)="onDeactivateDoc($event)"
@@ -92,7 +96,14 @@ export class GerenciaDocumentacionComponent implements OnInit {
   private contextDocumentService = inject(ContextDocumentService);
   private authService = inject(AuthService);
   private chatService = inject(GerenciaChatService);
+  private ventasChatService = inject(VentasAiChatService);
   private router = inject(Router);
+
+  // Montada también en /ventas/documentacion (ver ventas.component.ts):
+  // ahí no hay ruta de chat propia (es una vista interna por signal, no por
+  // router), así que en vez de navegar se avisa al padre para que cambie de
+  // pestaña -- ver onAskAiAboutDoc().
+  irAChatVentas = output<void>();
 
   documents = signal<BusinessDocument[]>([]);
   selectedDoc = signal<BusinessDocument | null>(null);
@@ -105,6 +116,11 @@ export class GerenciaDocumentacionComponent implements OnInit {
   // el botón "Consultar IA" navegaría a /gerencia/chat, bloqueado por
   // roleGuard para ADMIN, así que se oculta directamente.
   protected puedePreguntarIA = computed(() => this.authService.currentUser()?.role !== 'admin');
+
+  // Ventas solo consulta la base de conocimiento (ver /ventas/documentacion
+  // en ventas.component.ts) -- gestionarla (crear/editar/quitar) queda para
+  // Gerencia y Admin.
+  protected puedeGestionar = computed(() => this.authService.currentUser()?.role !== 'ventas');
 
   ngOnInit() {
     this.cargar();
@@ -140,6 +156,12 @@ export class GerenciaDocumentacionComponent implements OnInit {
   }
 
   onAskAiAboutDoc(doc: BusinessDocument) {
+    if (this.authService.currentUser()?.role === 'ventas') {
+      const prompt = `Resume los puntos clave del documento "${doc.title}" y explícame qué debo tener en cuenta.`;
+      void this.ventasChatService.sendMessage(prompt);
+      this.irAChatVentas.emit();
+      return;
+    }
     const prompt = `Resume los puntos clave del documento "${doc.title}" y explícame sus implicancias para la gerencia.`;
     this.chatService.sendMessage(prompt);
     this.router.navigate(['/gerencia/chat']);

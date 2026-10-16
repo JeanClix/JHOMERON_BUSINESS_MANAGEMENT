@@ -27,8 +27,14 @@ CREATE TABLE IF NOT EXISTS dwh.dim_cliente (
     departamento VARCHAR(100),
     ciudad VARCHAR(100),
     distrito VARCHAR(100),
+    provincia VARCHAR(100),
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Compatibilidad con bases ya creadas antes de agregar "provincia" (si la
+-- tabla ya existia sin esta columna, CREATE TABLE IF NOT EXISTS de arriba
+-- no la agrega -- este ALTER si es idempotente).
+ALTER TABLE dwh.dim_cliente ADD COLUMN IF NOT EXISTS provincia VARCHAR(100);
 
 -- 3. Dimensión Producto
 CREATE TABLE IF NOT EXISTS dwh.dim_producto (
@@ -107,14 +113,18 @@ BEGIN
     WHERE estado = 'PENDIENTE' AND fecha_contabilizacion IS NOT NULL
     ON CONFLICT (fecha) DO NOTHING;
 
-    -- 2. Poblar dim_cliente (SCD Tipo 1: actualiza ubicación si cambia)
-    INSERT INTO dwh.dim_cliente (ruc, razon_social, departamento, ciudad, distrito)
+    -- 2. Poblar dim_cliente (SCD Tipo 1: actualiza ubicación si cambia --
+    -- esto reemplaza automaticamente cualquier ubicacion vieja/inexacta por
+    -- la mas reciente que traiga staging.ventas, sin necesidad de borrarla
+    -- a mano)
+    INSERT INTO dwh.dim_cliente (ruc, razon_social, departamento, ciudad, distrito, provincia)
     SELECT DISTINCT ON (ruc)
         ruc,
         COALESCE(razon_social, 'SIN RAZON SOCIAL'),
         departamento,
         ciudad,
-        distrito
+        distrito,
+        provincia
     FROM staging.ventas
     WHERE estado = 'PENDIENTE' AND ruc IS NOT NULL
     ORDER BY ruc, fecha_carga DESC
@@ -122,7 +132,8 @@ BEGIN
         razon_social = EXCLUDED.razon_social,
         departamento = EXCLUDED.departamento,
         ciudad = EXCLUDED.ciudad,
-        distrito = EXCLUDED.distrito;
+        distrito = EXCLUDED.distrito,
+        provincia = EXCLUDED.provincia;
 
     -- 3. Poblar dim_producto
     INSERT INTO dwh.dim_producto (numero_articulo, descripcion_articulo, unidad_medida)
@@ -180,6 +191,13 @@ BEGIN
     INNER JOIN dwh.dim_vendedor v ON COALESCE(s.empleado_venta, 'SIN VENDEDOR') = v.empleado_venta
     LEFT JOIN dwh.dim_tipo_doc td ON s.tipo = td.tipo
     WHERE s.estado = 'PENDIENTE'
+      -- Excluye ventas de vehiculos/activos fijos de la empresa y servicios
+      -- financieros (intereses moratorios, etc) -- no son ventas reales de
+      -- producto, no deben contar en dashboards/reportes/ML. Se quedan en
+      -- staging.ventas (no se borran) para auditoria, solo no se promueven
+      -- a fact_ventas. COALESCE porque filas viejas (antes de esta columna)
+      -- no tienen tipo_item seteado.
+      AND COALESCE(s.tipo_item, 'PRODUCTO') = 'PRODUCTO'
     ON CONFLICT (serie, numero, producto_id, linea) DO UPDATE SET
         cantidad = EXCLUDED.cantidad,
         valor_unitario = EXCLUDED.valor_unitario,

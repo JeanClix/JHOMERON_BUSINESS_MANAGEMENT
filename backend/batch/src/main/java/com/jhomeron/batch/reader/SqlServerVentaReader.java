@@ -79,9 +79,11 @@ public class SqlServerVentaReader {
                         .moneda(rs.getString("MONEDA"))
                         .tipoCambio(rs.getBigDecimal("T.C."))
                         .totalVentaMn(rs.getBigDecimal("TOTAL V. VENTA MN"))
-                        .ciudad(rs.getString("CIUDAD"))
                         .distrito(rs.getString("DISTRITO"))
                         .departamento(rs.getString("DEPARTAMENTO"))
+                        .ciudad(rs.getString("DEPARTAMENTO")) // ver comentario en VentaDTO.ciudad
+                        .provincia(rs.getString("PROVINCIA"))
+                        .tipoItem(rs.getString("TIPO_ITEM"))
                         .source("SAP")
                         .estado("PENDIENTE")
                         .build())

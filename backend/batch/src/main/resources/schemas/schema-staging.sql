@@ -63,6 +63,11 @@ CREATE TABLE staging.ventas (
     ciudad VARCHAR(100),
     distrito VARCHAR(100),
     departamento VARCHAR(100),
+    provincia VARCHAR(100),
+    -- PRODUCTO / ACTIVO_FIJO / SERVICIO -- ver OITM.TipoItem en la BD espejo
+    -- y sp_ExtraerVentas v2. fact_ventas (schema-star.sql) solo promueve
+    -- PRODUCTO; se guardan igual aca los otros dos para no perder el dato.
+    tipo_item VARCHAR(20) DEFAULT 'PRODUCTO',
     fecha_carga TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     source VARCHAR(20) DEFAULT 'SAP',
     lote VARCHAR(50),

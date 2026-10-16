@@ -33,12 +33,12 @@ public class VentaStagingWriter {
                 "fecha_contabilizacion, fecha_documento, fecha_vencimiento, tipo, serie, numero, " +
                 "ruc, razon_social, empleado_venta, numero_articulo, descripcion_articulo, unidad_medida, " +
                 "cantidad, valor_unitario, total_venta_me, moneda, tipo_cambio, total_venta_mn, " +
-                "ciudad, distrito, departamento, source, estado" +
+                "ciudad, distrito, departamento, provincia, tipo_item, source, estado" +
                 ") VALUES (" +
                 ":fechaContabilizacion, :fechaDocumento, :fechaVencimiento, :tipo, :serie, :numero, " +
                 ":ruc, :razonSocial, :empleadoVenta, :numeroArticulo, :descripcionArticulo, :unidadMedida, " +
                 ":cantidad, :valorUnitario, :totalVentaMe, :moneda, :tipoCambio, :totalVentaMn, " +
-                ":ciudad, :distrito, :departamento, :source, :estado" +
+                ":ciudad, :distrito, :departamento, :provincia, :tipoItem, :source, :estado" +
                 ")";
 
         log.info("Configurando JdbcBatchItemWriter para tabla staging.ventas en DataSource destino");

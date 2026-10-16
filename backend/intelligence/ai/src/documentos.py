@@ -125,11 +125,14 @@ def actualizar_documento(
 _LARGO_RESUMEN = 220
 
 
-def listar_documentos() -> list[dict]:
+def listar_documentos(rol: str | None = None) -> list[dict]:
     """`resumen` es un extracto de `contenido` calculado en SQL -- el
     listado no trae el contenido completo (evita un payload pesado con
     muchos documentos), pero la UI (document-explorer) sí necesita un texto
-    corto por tarjeta, ver gerencia-data.service.ts."""
+    corto por tarjeta, ver gerencia-data.service.ts.
+
+    `rol` filtra por roles_visibles (mismo criterio que rag.v_chunk_visible
+    en el chat, ver tools.py) -- None = sin filtro (uso interno/admin)."""
     with get_connection() as conn:
         cur = conn.execute(
             f"""
@@ -137,25 +140,28 @@ def listar_documentos() -> list[dict]:
                    fecha_creacion, fecha_actualizacion, LEFT(contenido, {_LARGO_RESUMEN}) AS resumen
             FROM rag.documento
             WHERE activo
+              AND (%(rol)s::text IS NULL OR %(rol)s = ANY(roles_visibles))
             ORDER BY fecha_actualizacion DESC
-            """
+            """,
+            {"rol": rol},
         )
         return cur.fetchall()
 
 
-def obtener_documento(documento_id: int) -> dict:
+def obtener_documento(documento_id: int, rol: str | None = None) -> dict:
     with get_connection() as conn:
         fila = conn.execute(
             f"""
             SELECT id, titulo, categoria, contenido, formato_original, roles_visibles, subido_por, activo,
                    fecha_creacion, fecha_actualizacion, LEFT(contenido, {_LARGO_RESUMEN}) AS resumen
             FROM rag.documento
-            WHERE id = %s AND activo
+            WHERE id = %(id)s AND activo
+              AND (%(rol)s::text IS NULL OR %(rol)s = ANY(roles_visibles))
             """,
-            (documento_id,),
+            {"id": documento_id, "rol": rol},
         ).fetchone()
         if not fila:
-            raise DocumentoError(f"Documento {documento_id} no encontrado o inactivo.")
+            raise DocumentoError(f"Documento {documento_id} no encontrado, inactivo o no visible para tu rol.")
         return fila
 
 

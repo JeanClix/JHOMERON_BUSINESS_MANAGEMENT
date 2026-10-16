@@ -6,6 +6,8 @@ import { SidebarComponent } from '../../common/sidebar/sidebar.component';
 import { SidebarItem } from '../../common/sidebar-item/sidebar-item.component';
 import { VentasAiChatComponent } from './components/ventas-ai-chat/ventas-ai-chat.component';
 import { VentasChatBarComponent } from './components/ventas-chat-bar/ventas-chat-bar.component';
+import { GerenciaDocumentacionComponent } from '../gerencia/pages/documentacion/gerencia-documentacion.component';
+import { PeruMapComponent } from '../../shared/components/peru-map/peru-map.component';
 import { BusinessChartComponent } from '../../shared/components/business-chart/business-chart.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ReportingService } from '../../core/services/reporting.service';
@@ -23,7 +25,7 @@ import {
 @Component({
   selector: 'app-ventas',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent, VentasAiChatComponent, VentasChatBarComponent, BusinessChartComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, VentasAiChatComponent, VentasChatBarComponent, BusinessChartComponent, GerenciaDocumentacionComponent, PeruMapComponent],
   templateUrl: './ventas.component.html'
 })
 export class VentasComponent {
@@ -59,21 +61,32 @@ export class VentasComponent {
       description: 'Cumplimiento de cuota, ventas por período y tus clientes con más movimiento, con datos reales del Data Warehouse.',
       icon: 'fa-solid fa-chart-line',
       badge: 'Hoy',
-      badgeColor: 'bg-[#ef0606]'
+      badgeColor: 'bg-[#ef0606]',
+      groupLabel: 'Herramientas de Venta'
     },
     {
       id: 'clientes',
       label: 'Cartera de Clientes',
       subtitle: 'Cuentas y créditos',
       description: 'Directorio de clientes asignados, saldo de crédito disponible, historial de facturas y visitas.',
-      icon: 'fa-solid fa-address-book'
+      icon: 'fa-solid fa-address-book',
+      groupLabel: 'Herramientas de Venta'
     },
     {
       id: 'asistente_ia',
       label: 'Asistente de Ventas IA',
       subtitle: 'Consulta datos reales',
       description: 'Pregunta en lenguaje natural sobre tus ventas, clientes y productos: el asistente consulta directamente el Data Warehouse (sin datos inventados).',
-      icon: 'fa-solid fa-paint-roller'
+      icon: 'fa-solid fa-paint-roller',
+      groupLabel: 'Herramientas de Venta'
+    },
+    {
+      id: 'documentacion',
+      label: 'Base de Conocimiento',
+      subtitle: 'Políticas y procesos',
+      description: 'Consulta políticas comerciales, protocolos y documentación institucional. Solo lectura -- gestionarla es cosa de Gerencia/Admin.',
+      groupLabel: 'Documentación',
+      icon: 'fa-solid fa-book'
     }
   ]);
 
@@ -134,6 +147,47 @@ export class VentasComponent {
   protected readonly departamentosCartera = computed(() =>
     Array.from(new Set(this.clientesCartera().map((c) => c.departamento))).sort()
   );
+
+  // Conteo de clientes por departamento para el mapa de Perú (app-peru-map) --
+  // los nombres ya vienen en MAYÚSCULAS sin tildes desde dwh.dim_cliente
+  // (ver backend/batch schema-star.sql), que es el mismo formato que usan
+  // los data-dep del SVG.
+  protected readonly clientesPorDepartamento = computed(() => {
+    const conteo: Record<string, number> = {};
+    for (const cliente of this.clientesCartera()) {
+      const depto = (cliente.departamento || '').trim().toUpperCase();
+      if (!depto) continue;
+      conteo[depto] = (conteo[depto] || 0) + 1;
+    }
+    return conteo;
+  });
+
+  // Clientes ordenados por monto histórico comprado (ver
+  // ClienteCartera.total_soles_historico) -- mismo dato ya cargado para la
+  // Cartera, no requiere otro request. Paginado de a 10 en el Dashboard.
+  protected readonly clientesTopCompraOrdenados = computed(() =>
+    [...this.clientesCartera()].sort((a, b) => b.total_soles_historico - a.total_soles_historico)
+  );
+
+  protected readonly paginaTopCompra = signal<number>(1);
+  protected readonly tamanoPaginaTopCompra = 10;
+
+  protected readonly totalPaginasTopCompra = computed(() =>
+    Math.max(1, Math.ceil(this.clientesTopCompraOrdenados().length / this.tamanoPaginaTopCompra))
+  );
+
+  protected readonly clientesTopCompra = computed(() => {
+    const inicio = (this.paginaTopCompra() - 1) * this.tamanoPaginaTopCompra;
+    return this.clientesTopCompraOrdenados().slice(inicio, inicio + this.tamanoPaginaTopCompra);
+  });
+
+  protected siguientePaginaTopCompra() {
+    if (this.paginaTopCompra() < this.totalPaginasTopCompra()) this.paginaTopCompra.update((p) => p + 1);
+  }
+
+  protected anteriorPaginaTopCompra() {
+    if (this.paginaTopCompra() > 1) this.paginaTopCompra.update((p) => p - 1);
+  }
 
   protected readonly clientesCarteraFiltrados = computed(() => {
     const texto = this.filtroCarteraCliente().trim().toLowerCase();
@@ -408,7 +462,8 @@ export class VentasComponent {
         this.cargarCuota(),
         this.cargarVentas(),
         this.cargarProductos(),
-        this.cargarClientesInactivos()
+        this.cargarClientesInactivos(),
+        this.cargarCartera()
       ]);
     } finally {
       this.cargandoReporte.set(false);

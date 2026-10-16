@@ -8,6 +8,11 @@ export interface SidebarItem {
   icon?: string;
   badge?: string;
   badgeColor?: string;
+  // Agrupa visualmente los items en el sidebar (ver sidebar.component.html):
+  // items consecutivos con el mismo groupLabel quedan bajo un mismo título de
+  // sección, como en el sidebar de Gerencia (NavGroup). Opcional -- sin esto
+  // el sidebar se ve como una lista plana (comportamiento anterior).
+  groupLabel?: string;
 }
 
 @Component({

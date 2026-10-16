@@ -23,6 +23,10 @@ _DOCUMENTOS = [
     ("01-lineas-producto.md", "Catálogo de productos por línea", "lineas-producto"),
     ("02-puntos-venta-contacto.md", "Puntos de venta y contacto", "general"),
     ("03-terminos-condiciones.md", "Términos y condiciones (resumen)", "politicas"),
+    ("04-vision-mision-objetivos.md", "¿Quiénes somos? Visión, misión y objetivos", "general"),
+    ("05-politicas-comerciales.md", "Políticas comerciales", "politicas"),
+    ("06-politica-uso-confidencialidad.md", "Política de uso y confidencialidad del sistema", "politicas"),
+    ("07-protocolo-producto-mal-estado.md", "Protocolo: producto en mal estado al cliente", "procesos"),
 ]
 
 

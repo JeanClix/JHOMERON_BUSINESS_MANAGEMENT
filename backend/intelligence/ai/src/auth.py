@@ -46,6 +46,16 @@ def require_gerencia(claims: dict = Depends(get_current_claims)) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Requiere rol GERENCIA o ADMIN.")
 
 
+def require_rol_valido(claims: dict = Depends(get_current_claims)) -> dict:
+    """Para endpoints de solo lectura que los tres roles pueden usar (ej.
+    listar/ver documentos de la Base de Conocimiento) -- a diferencia de
+    require_gerencia, no excluye VENDEDOR. El filtrado fino por documento
+    sigue haciéndose aparte vía roles_visibles (ver documentos.py)."""
+    if claims.get("role") not in ("VENDEDOR", "GERENCIA", "ADMIN"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Rol no reconocido.")
+    return claims
+
+
 def resolve_chat_identity(claims: dict = Depends(get_current_claims)) -> str | None:
     """Identidad para /chat: VENDEDOR -> su vendedor_nombre_sap (fuerza el
     scoping de cada consulta SQL a sus propias ventas, ver tools.py);
