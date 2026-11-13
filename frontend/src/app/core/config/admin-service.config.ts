@@ -1,2 +1,4 @@
-/** URL base del Admin Service (Spring Boot, backend/admin). Dev: localhost:8092. */
-export const ADMIN_SERVICE_BASE_URL = 'http://localhost:8092';
+import { environment } from '../../../environments/environment';
+
+/** URL base del Admin Service (Spring Boot, backend/admin). Ver src/environments/. */
+export const ADMIN_SERVICE_BASE_URL = environment.adminServiceBaseUrl;

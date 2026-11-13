@@ -1,0 +1,12 @@
+# Nunca meter secretos ni el venv local en la imagen: las variables vienen
+# del env_file de docker-compose.prod.yml.
+.env
+.env.*
+!.env.example
+.venv
+__pycache__
+*.pyc
+logs
+mlruns
+mlflow.db
+data

@@ -33,6 +33,11 @@ jwt:
   secret: ${JWT_SECRET:jhomeron-dev-secret-cambiar-en-produccion-32+chars}
   expiration-ms: ${JWT_EXPIRATION_MS:28800000} # 8 horas
 
+# Origenes del frontend permitidos (ver config/CorsConfig.java). Produccion:
+# CORS_ORIGINS=https://<proyecto>.pages.dev,https://app.<dominio>
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:80,http://localhost:8080}
+
 # Development Profile Override
 ---
 spring:

@@ -1,0 +1,29 @@
+# Un solo dominio de API (api.<dominio>, vía Cloudflare Tunnel -> caddy:80).
+# handle_path quita el prefijo: /admin/api/auth/login -> admin:8092/api/auth/login.
+# El frontend arma estas rutas en src/environments/environment.prod.ts.
+# TLS lo termina Cloudflare; aquí basta HTTP plano dentro de la red Docker.
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	handle_path /admin/* {
+		reverse_proxy admin:8092
+	}
+	handle_path /reporting/* {
+		reverse_proxy reporting:8093
+	}
+	handle_path /ai/* {
+		# flush inmediato: respuestas largas del chat sin buffering
+		reverse_proxy ai:8090 {
+			flush_interval -1
+		}
+	}
+	handle_path /ml/* {
+		reverse_proxy ml:8091
+	}
+	handle {
+		respond 404
+	}
+}

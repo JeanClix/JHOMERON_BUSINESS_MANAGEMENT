@@ -1,9 +1,15 @@
-pandas>=2.2
-scikit-learn>=1.5
-xgboost>=2.1
-mlflow>=2.17
-psycopg[binary]>=3.2
-pyarrow>=17
-python-dotenv>=1.0
-fastapi>=0.115
-uvicorn[standard]>=0.30
+# Versiones fijadas a las del venv con el que se entrenó el modelo en
+# Production: scikit-learn/numpy/skops deben coincidir para deserializar
+# model.skops sin errores ni predicciones distintas.
+pandas==3.0.6
+numpy==2.5.3
+scipy==1.18.1
+scikit-learn==1.9.1
+skops==0.15.0
+xgboost==3.4.1
+mlflow==3.16.1
+psycopg[binary]==3.3.5
+pyarrow==25.0.1
+python-dotenv==1.2.3
+fastapi==0.141.1
+uvicorn[standard]==0.53.0

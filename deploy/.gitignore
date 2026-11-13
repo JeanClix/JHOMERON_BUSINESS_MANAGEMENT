@@ -1,0 +1,6 @@
+# Secretos y datos de la VM -- nunca al repo
+.env
+ai.env
+backups/
+ml-model/
+!.env.prod.example

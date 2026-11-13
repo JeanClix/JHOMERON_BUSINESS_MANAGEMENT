@@ -789,8 +789,8 @@ export class GerenciaDashboardComponent {
   }
 
   private mensajeErrorReporte(): string {
-    return 'No se pudo cargar el reporte gerencial. Verifica que backend/reporting esté corriendo en ' +
-      'localhost:8093 y que tu usuario tenga rol GERENCIA.';
+    return 'No se pudo cargar el reporte gerencial. Verifica que el servicio de reportes esté ' +
+      'disponible y que tu usuario tenga rol GERENCIA.';
   }
 
   private formatoMiles(valor: number): string {

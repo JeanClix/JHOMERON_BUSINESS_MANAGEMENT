@@ -1,0 +1,128 @@
+# ============================================================
+# JHOMERON - Producción (VM Oracle Cloud, ARM A1)
+# ============================================================
+# Uso (desde deploy/ en la VM):
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml run --rm batch   # ETL a demanda
+#
+# Ningún servicio publica puertos a internet: el tráfico entra por
+# Cloudflare Tunnel (cloudflared) -> Caddy -> cada servicio por la red
+# interna. Postgres solo escucha en 127.0.0.1 (acceso vía túnel SSH).
+# Secretos: deploy/.env (ver .env.prod.example) y deploy/ai.env.
+# ============================================================
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *restart
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: jhomeron_batch
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jhomeron_batch"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  admin:
+    <<: *restart
+    build: ../backend/admin
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jhomeron_batch
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_JPA_SHOW_SQL: "false"
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:?falta CORS_ORIGINS}
+      JAVA_TOOL_OPTIONS: -Xmx512m
+
+  reporting:
+    <<: *restart
+    build: ../backend/reporting
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgresql://bi_readonly:${BI_READONLY_PASSWORD:?falta BI_READONLY_PASSWORD}@postgres:5432/jhomeron_batch
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+
+  ai:
+    <<: *restart
+    build: ../backend/intelligence/ai
+    depends_on:
+      postgres: { condition: service_healthy }
+    # LLM_*, EMBEDDING_*, JEV_*, etc. (copiar backend/intelligence/ai/.env.example)
+    env_file: ./ai.env
+    environment:
+      DATABASE_URL: postgresql://ai_readonly:${AI_READONLY_PASSWORD:?falta AI_READONLY_PASSWORD}@postgres:5432/jhomeron_batch
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      REPORTING_BASE_URL: http://reporting:8093
+    volumes:
+      - ai-logs:/app/logs
+
+  ml:
+    <<: *restart
+    build: ../backend/intelligence/ml
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgresql://ai_readonly:${AI_READONLY_PASSWORD}@postgres:5432/jhomeron_batch
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      # Carpeta `artifacts` del modelo en Production, copiada a deploy/ml-model
+      # (ver DEPLOY.md). No se usa el registry de mlflow.db dentro del contenedor.
+      MODEL_URI: /models/forecast
+      MODEL_VERSION: ${ML_MODEL_VERSION:-1}
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+    volumes:
+      - ./ml-model:/models/forecast:ro
+
+  # ETL SQL Server (SAP, vía Tailscale) -> Postgres. No queda corriendo: se
+  # lanza con `run --rm batch` desde cron (scripts/run-etl.sh) y termina.
+  batch:
+    build: ../backend/batch
+    profiles: ["etl"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_MAIN_WEB_APPLICATION_TYPE: none
+      LOCAL_PG_URL: jdbc:postgresql://postgres:5432/jhomeron_batch
+      LOCAL_PG_USERNAME: postgres
+      LOCAL_PG_PASSWORD: ${POSTGRES_PASSWORD}
+      SQLSERVER_URL: ${SQLSERVER_URL:?falta SQLSERVER_URL}
+      SQLSERVER_USERNAME: ${SQLSERVER_USERNAME:?falta SQLSERVER_USERNAME}
+      SQLSERVER_PASSWORD: ${SQLSERVER_PASSWORD:?falta SQLSERVER_PASSWORD}
+      LOGGING_LEVEL_COM_JHOMERON_BATCH: INFO
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_BATCH: INFO
+      JAVA_TOOL_OPTIONS: -Xmx1g
+
+  caddy:
+    <<: *restart
+    image: caddy:2-alpine
+    depends_on: [admin, reporting, ai, ml]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+
+  cloudflared:
+    <<: *restart
+    image: cloudflare/cloudflared:latest
+    depends_on: [caddy]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?falta CLOUDFLARE_TUNNEL_TOKEN}
+
+volumes:
+  pgdata:
+  ai-logs:

@@ -13,5 +13,9 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_algorithm: str = "HS256"
 
+    # Orígenes del frontend permitidos por CORS, separados por coma. En
+    # producción: el dominio de Cloudflare Pages (ver deploy/.env.prod.example).
+    cors_origins: str = "http://localhost:4200,http://127.0.0.1:4200"
+
 
 settings = Settings()

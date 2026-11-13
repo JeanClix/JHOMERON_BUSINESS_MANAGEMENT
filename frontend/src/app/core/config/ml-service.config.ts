@@ -1,2 +1,4 @@
-/** URL base del ML Service (FastAPI, intelligence/ml/service). Dev: localhost:8091. */
-export const ML_SERVICE_BASE_URL = 'http://localhost:8091';
+import { environment } from '../../../environments/environment';
+
+/** URL base del ML Service (FastAPI, backend/intelligence/ml). Ver src/environments/. */
+export const ML_SERVICE_BASE_URL = environment.mlServiceBaseUrl;

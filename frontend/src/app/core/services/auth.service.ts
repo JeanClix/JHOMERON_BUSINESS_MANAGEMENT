@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { AuthResponse, LoginCredentials, User, UserRole } from '../models/auth.model';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { ADMIN_SERVICE_BASE_URL } from '../config/admin-service.config';
 
 const STORAGE_KEY = 'jhomeron_auth_user';
 
@@ -41,7 +42,7 @@ export class AuthService {
 
     try {
        const res = await firstValueFrom(
-         this.http.post<any>('http://localhost:8092/api/auth/login', {
+         this.http.post<any>(`${ADMIN_SERVICE_BASE_URL}/api/auth/login`, {
            username: rawIdentifier,
            password: rawPassword
          })

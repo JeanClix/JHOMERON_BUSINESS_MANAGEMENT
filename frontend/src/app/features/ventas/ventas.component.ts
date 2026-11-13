@@ -562,7 +562,7 @@ export class VentasComponent {
         return 'Tu usuario no tiene un vendedor vinculado (vendedorNombreSap) en el panel admin -- ' +
           'no se puede relacionar tu sesión con ventas del Data Warehouse todavía.';
       case 0:
-        return 'No se pudo conectar con backend/reporting en localhost:8093. Verifica que el servicio esté corriendo.';
+        return 'No se pudo conectar con el servicio de reportes. Verifica que esté disponible.';
       default:
         return `backend/reporting respondió un error (HTTP ${status}). Revisa los logs del servicio.`;
     }

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from .agent import responder_pregunta
 from .auth import get_bearer_token, get_current_claims, require_gerencia, require_rol_valido, require_vendedor, resolve_chat_identity
 from .chunking import ExtraccionError
+from .config import settings
 from .documentos import (
     DocumentoError,
     actualizar_documento,
@@ -37,12 +38,11 @@ def _iniciar_scheduler_insights():
     _scheduler.add_job(generar_insights, "cron", day=1, hour=3, id="insights_mensual", replace_existing=True)
     _scheduler.start()
 
-# El frontend Angular (dev server) corre en otro origen (localhost:4200).
-# Solo se habilitan los orígenes de desarrollo conocidos; en producción
-# esto debería restringirse al dominio real del frontend.
+# El frontend Angular corre en otro origen (dev: localhost:4200, prod:
+# Cloudflare Pages). Solo se habilitan los orígenes de CORS_ORIGINS.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
+    allow_origins=settings.cors_origins.split(","),
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )

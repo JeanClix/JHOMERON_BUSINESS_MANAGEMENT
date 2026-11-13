@@ -40,6 +40,11 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 MODEL_NAME = "jhomeron_ventas_forecast"
 MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+# Producción (Docker): ruta a la carpeta `artifacts` del modelo copiada a la
+# VM. mlflow.db guarda rutas absolutas de esta máquina en storage_location,
+# así que dentro del contenedor `models:/...` no resolvería. Vacío = registry.
+MODEL_URI = os.environ.get("MODEL_URI", "")
+MODEL_VERSION = os.environ.get("MODEL_VERSION", "")
 
 MESES_TEMPORADA = {
     12: "verano", 1: "verano", 2: "verano",
@@ -51,7 +56,10 @@ MESES_TEMPORADA = {
 app = FastAPI(title="JHOMERON ML Service", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
+    # Orígenes del frontend separados por coma (prod: dominio de Cloudflare Pages).
+    allow_origins=os.environ.get(
+        "CORS_ORIGINS", "http://localhost:4200,http://127.0.0.1:4200"
+    ).split(","),
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
@@ -81,6 +89,11 @@ def obtener_ultima_fecha_real() -> date:
 def cargar_modelo_produccion():
     if _cache_modelo:
         return _cache_modelo["modelo"], _cache_modelo["version"]
+    if MODEL_URI:
+        modelo = mlflow.sklearn.load_model(MODEL_URI)
+        _cache_modelo["modelo"] = modelo
+        _cache_modelo["version"] = MODEL_VERSION or "local"
+        return modelo, _cache_modelo["version"]
 
     client = mlflow.tracking.MlflowClient()
     versiones = client.get_latest_versions(MODEL_NAME, stages=["Production"])

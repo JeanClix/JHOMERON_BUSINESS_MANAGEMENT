@@ -11,15 +11,17 @@ tipados y deterministicos al frontend para dashboards.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .config import settings
 from .routers import gerencia, vendedores
 
 app = FastAPI(title="JHOMERON Reporting Service", version="0.1.0")
 
-# El frontend Angular (dev server) corre en otro origen (localhost:4200).
+# El frontend Angular corre en otro origen (dev: localhost:4200, prod:
+# Cloudflare Pages) -- los orígenes vienen de CORS_ORIGINS.
 # Mismo criterio que backend/intelligence/ai/src/main.py.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
+    allow_origins=settings.cors_origins.split(","),
     allow_methods=["GET"],
     allow_headers=["*"],
 )

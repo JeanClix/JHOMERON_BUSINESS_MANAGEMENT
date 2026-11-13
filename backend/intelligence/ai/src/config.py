@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     reporting_base_url: str = "http://localhost:8093"
 
+    # Orígenes del frontend permitidos por CORS, separados por coma. En
+    # producción: el dominio de Cloudflare Pages (ver deploy/.env.prod.example).
+    cors_origins: str = "http://localhost:4200,http://127.0.0.1:4200"
+
     # Embeddings para la tool buscar_documentos (RAG sobre documentación
     # empresarial). Puede ser un proveedor distinto al de chat (ej. hoy el
     # chat corre en Groq, que no ofrece embeddings) -- si embedding_base_url
